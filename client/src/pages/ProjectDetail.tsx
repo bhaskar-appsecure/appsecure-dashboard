@@ -438,19 +438,39 @@ export default function ProjectDetail() {
   const [, params] = useRoute("/projects/:id");
   const projectId = params?.id;
 
-  // Real API call enabled
-  const { data: project, isLoading } = useQuery<ProjectDetail>({
+  // Fetch real project data from API
+  const { data: project, isLoading, error } = useQuery<Project>({
     queryKey: ['/api/projects', projectId],
-    // For now we'll use mock data, but the API is ready
-    queryFn: async () => {
-      if (!projectId) throw new Error('Project ID required');
-      // TODO: Replace with actual API call when backend is ready
-      return mockProjectDetail;
-    },
     enabled: !!projectId
   });
 
-  const projectData = project || mockProjectDetail;
+  // Fetch project findings for statistics
+  const { data: findings = [] } = useQuery<Finding[]>({
+    queryKey: ['/api/projects', projectId, 'findings'],
+    enabled: !!projectId
+  });
+
+  // Calculate finding statistics from real data
+  const findingStats = findings.reduce((stats, finding) => {
+    stats.total++;
+    stats[finding.severity]++;
+    return stats;
+  }, { total: 0, critical: 0, high: 0, medium: 0, low: 0, informational: 0 });
+
+  // Create extended project data with real findings and stats
+  const projectData: ProjectDetail | undefined = project ? {
+    ...project,
+    teamSize: 4, // TODO: Get from project members API
+    scope: {
+      inScope: project.inScope || [],
+      outOfScope: project.outOfScope || [],
+      methodology: project.methodology || "OWASP Testing Guide"
+    },
+    credentials: [], // TODO: Fetch from credentials API
+    postmanCollections: [], // TODO: Fetch from collections API
+    findings: findings.slice(0, 10), // Show latest 10 findings
+    findingStats
+  } : undefined;
 
   if (isLoading) {
     return (
