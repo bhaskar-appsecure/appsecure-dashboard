@@ -13,6 +13,7 @@ import { ArrowLeft, Save, X, MessageSquare, Clock, User, Calendar, Building } fr
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CVSSCalculator } from "@/components/CVSSCalculator";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -323,12 +324,12 @@ export default function FindingDetail() {
             </CardHeader>
             <CardContent>
               {isEditing ? (
-                <Textarea
-                  value={editedFinding.descriptionHtml ?? typedFinding.descriptionHtml ?? ""}
-                  onChange={(e) => setEditedFinding({ ...editedFinding, descriptionHtml: e.target.value })}
-                  rows={6}
+                <RichTextEditor
+                  content={editedFinding.descriptionHtml ?? typedFinding.descriptionHtml ?? ""}
+                  onChange={(content) => setEditedFinding({ ...editedFinding, descriptionHtml: content })}
                   placeholder="Describe the vulnerability..."
-                  data-testid="textarea-edit-description"
+                  disabled={updateMutation.isPending}
+                  className="min-h-[200px]"
                 />
               ) : (
                 <div 
@@ -345,12 +346,12 @@ export default function FindingDetail() {
             </CardHeader>
             <CardContent>
               {isEditing ? (
-                <Textarea
-                  value={editedFinding.stepsHtml ?? typedFinding.stepsHtml ?? ""}
-                  onChange={(e) => setEditedFinding({ ...editedFinding, stepsHtml: e.target.value })}
-                  rows={6}
+                <RichTextEditor
+                  content={editedFinding.stepsHtml ?? typedFinding.stepsHtml ?? ""}
+                  onChange={(content) => setEditedFinding({ ...editedFinding, stepsHtml: content })}
                   placeholder="List the steps to reproduce..."
-                  data-testid="textarea-edit-steps"
+                  disabled={updateMutation.isPending}
+                  className="min-h-[200px]"
                 />
               ) : (
                 <div 
@@ -367,12 +368,12 @@ export default function FindingDetail() {
             </CardHeader>
             <CardContent>
               {isEditing ? (
-                <Textarea
-                  value={editedFinding.impactHtml ?? typedFinding.impactHtml ?? ""}
-                  onChange={(e) => setEditedFinding({ ...editedFinding, impactHtml: e.target.value })}
-                  rows={6}
+                <RichTextEditor
+                  content={editedFinding.impactHtml ?? typedFinding.impactHtml ?? ""}
+                  onChange={(content) => setEditedFinding({ ...editedFinding, impactHtml: content })}
                   placeholder="Describe the impact..."
-                  data-testid="textarea-edit-impact"
+                  disabled={updateMutation.isPending}
+                  className="min-h-[200px]"
                 />
               ) : (
                 <div 
@@ -389,12 +390,12 @@ export default function FindingDetail() {
             </CardHeader>
             <CardContent>
               {isEditing ? (
-                <Textarea
-                  value={editedFinding.fixHtml ?? typedFinding.fixHtml ?? ""}
-                  onChange={(e) => setEditedFinding({ ...editedFinding, fixHtml: e.target.value })}
-                  rows={6}
+                <RichTextEditor
+                  content={editedFinding.fixHtml ?? typedFinding.fixHtml ?? ""}
+                  onChange={(content) => setEditedFinding({ ...editedFinding, fixHtml: content })}
                   placeholder="Suggest fixes..."
-                  data-testid="textarea-edit-fix"
+                  disabled={updateMutation.isPending}
+                  className="min-h-[200px]"
                 />
               ) : (
                 <div 
