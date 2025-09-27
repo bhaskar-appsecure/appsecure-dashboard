@@ -11,6 +11,10 @@ import {
   activityLogs,
   projectCredentials,
   postmanCollections,
+  roles,
+  rolePermissions,
+  userRoles,
+  userInvitations,
   type User,
   type UpsertUser,
   type Organization,
@@ -24,6 +28,10 @@ import {
   type ActivityLog,
   type ProjectCredential,
   type PostmanCollection,
+  type Role,
+  type RolePermission,
+  type UserRole,
+  type UserInvitation,
   type InsertOrganization,
   type InsertProject,
   type InsertFinding,
@@ -33,6 +41,10 @@ import {
   type InsertCredential,
   type InsertPostmanCollection,
   type InsertReportExport,
+  type InsertRole,
+  type InsertRolePermission,
+  type InsertUserRole,
+  type InsertUserInvitation,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -102,6 +114,38 @@ export interface IStorage {
     newValues?: any,
     metadata?: any
   ): Promise<ActivityLog>;
+
+  // Role management operations
+  createRole(role: InsertRole): Promise<Role>;
+  getRole(id: string): Promise<Role | undefined>;
+  getRolesByOrganization(orgId: string): Promise<Role[]>;
+  updateRole(id: string, updates: Partial<InsertRole>): Promise<Role>;
+  deleteRole(id: string): Promise<void>;
+  
+  // Role permission operations
+  addRolePermission(rolePermission: InsertRolePermission): Promise<RolePermission>;
+  removeRolePermission(roleId: string, permission: string): Promise<void>;
+  getRolePermissions(roleId: string): Promise<string[]>;
+  
+  // User role operations
+  assignUserRole(userRole: InsertUserRole): Promise<UserRole>;
+  removeUserRole(userId: string, roleId: string): Promise<void>;
+  getUserRoles(userId: string): Promise<(UserRole & { role: Role })[]>;
+  getUsersByRole(roleId: string): Promise<(UserRole & { user: User })[]>;
+  
+  // User invitation operations
+  createUserInvitation(invitation: InsertUserInvitation): Promise<UserInvitation>;
+  getUserInvitations(organizationId: string): Promise<(UserInvitation & { role: Role; invitedByUser: User })[]>;
+  getInvitationByToken(token: string): Promise<UserInvitation | undefined>;
+  acceptInvitation(token: string, userId: string): Promise<UserRole>;
+  
+  // User management operations
+  getUsersByOrganization(organizationId: string): Promise<(User & { roles: Role[] })[]>;
+  updateUserRole(userId: string, organizationId: string, newRole: string): Promise<UserRole>;
+  removeUserFromOrganization(userId: string, organizationId: string): Promise<void>;
+  
+  // Performance optimization - get all user permissions in one query
+  getUserPermissions(userId: string): Promise<Set<string>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -153,32 +197,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProjectsByUser(userId: string): Promise<Project[]> {
-    let results = await db
+    const results = await db
       .select()
       .from(projects)
       .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
       .where(eq(projectMembers.userId, userId));
-    
-    // If user has no project memberships, automatically add them to the first available project
-    if (results.length === 0) {
-      const availableProjects = await db.select().from(projects).limit(1);
-      if (availableProjects.length > 0) {
-        const firstProject = availableProjects[0];
-        // Add user as a member of the first project
-        await db.insert(projectMembers).values({
-          projectId: firstProject.id,
-          userId: userId,
-          canEdit: true
-        });
-        
-        // Fetch the projects again
-        results = await db
-          .select()
-          .from(projects)
-          .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
-          .where(eq(projectMembers.userId, userId));
-      }
-    }
     
     return results.map(r => r.projects);
   }
@@ -530,6 +553,214 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return log;
+  }
+
+  // Role management operations
+  async createRole(roleData: InsertRole): Promise<Role> {
+    const [role] = await db.insert(roles).values(roleData).returning();
+    return role;
+  }
+
+  async getRole(id: string): Promise<Role | undefined> {
+    const [role] = await db.select().from(roles).where(eq(roles.id, id));
+    return role;
+  }
+
+  async getRolesByOrganization(orgId: string): Promise<Role[]> {
+    return await db.select().from(roles).where(eq(roles.organizationId, orgId));
+  }
+
+  async updateRole(id: string, updates: Partial<InsertRole>): Promise<Role> {
+    const [role] = await db
+      .update(roles)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(roles.id, id))
+      .returning();
+    return role;
+  }
+
+  async deleteRole(id: string): Promise<void> {
+    await db.delete(roles).where(eq(roles.id, id));
+  }
+
+  // Role permission operations
+  async addRolePermission(rolePermissionData: InsertRolePermission): Promise<RolePermission> {
+    const [rolePermission] = await db.insert(rolePermissions).values(rolePermissionData).returning();
+    return rolePermission;
+  }
+
+  async removeRolePermission(roleId: string, permission: string): Promise<void> {
+    await db.delete(rolePermissions).where(
+      and(
+        eq(rolePermissions.roleId, roleId),
+        eq(rolePermissions.permission, permission as any)
+      )
+    );
+  }
+
+  async getRolePermissions(roleId: string): Promise<string[]> {
+    const permissions = await db
+      .select({ permission: rolePermissions.permission })
+      .from(rolePermissions)
+      .where(eq(rolePermissions.roleId, roleId));
+    return permissions.map(p => p.permission);
+  }
+
+  // User role operations
+  async assignUserRole(userRoleData: InsertUserRole): Promise<UserRole> {
+    const [userRole] = await db.insert(userRoles).values(userRoleData).returning();
+    return userRole;
+  }
+
+  async removeUserRole(userId: string, roleId: string): Promise<void> {
+    await db.delete(userRoles).where(
+      and(
+        eq(userRoles.userId, userId),
+        eq(userRoles.roleId, roleId)
+      )
+    );
+  }
+
+  async getUserRoles(userId: string): Promise<(UserRole & { role: Role })[]> {
+    const results = await db
+      .select()
+      .from(userRoles)
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(eq(userRoles.userId, userId));
+    
+    return results.map(row => ({
+      ...row.user_roles,
+      role: row.roles
+    }));
+  }
+
+  async getUsersByRole(roleId: string): Promise<(UserRole & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(userRoles)
+      .innerJoin(users, eq(userRoles.userId, users.id))
+      .where(eq(userRoles.roleId, roleId));
+    
+    return results.map(row => ({
+      ...row.user_roles,
+      user: row.users
+    }));
+  }
+
+  // User invitation operations
+  async createUserInvitation(invitationData: InsertUserInvitation): Promise<UserInvitation> {
+    const [invitation] = await db.insert(userInvitations).values(invitationData).returning();
+    return invitation;
+  }
+
+  async getUserInvitations(organizationId: string): Promise<(UserInvitation & { role: Role; invitedByUser: User })[]> {
+    const results = await db
+      .select()
+      .from(userInvitations)
+      .innerJoin(roles, eq(userInvitations.roleId, roles.id))
+      .innerJoin(users, eq(userInvitations.invitedBy, users.id))
+      .where(eq(userInvitations.organizationId, organizationId));
+    
+    return results.map(row => ({
+      ...row.user_invitations,
+      role: row.roles,
+      invitedByUser: row.users
+    }));
+  }
+
+  async getInvitationByToken(token: string): Promise<UserInvitation | undefined> {
+    const [invitation] = await db
+      .select()
+      .from(userInvitations)
+      .where(eq(userInvitations.token, token));
+    return invitation;
+  }
+
+  async acceptInvitation(token: string, userId: string): Promise<UserRole> {
+    // Get the invitation
+    const invitation = await this.getInvitationByToken(token);
+    if (!invitation) {
+      throw new Error('Invalid invitation token');
+    }
+
+    // Create the user role assignment
+    const userRole = await this.assignUserRole({
+      userId,
+      roleId: invitation.roleId,
+      assignedBy: invitation.invitedBy,
+    });
+
+    // Delete the invitation
+    await db.delete(userInvitations).where(eq(userInvitations.token, token));
+
+    return userRole;
+  }
+
+  // User management operations
+  async getUsersByOrganization(organizationId: string): Promise<(User & { roles: Role[] })[]> {
+    const usersWithRoles = await db
+      .select()
+      .from(users)
+      .leftJoin(userRoles, eq(users.id, userRoles.userId))
+      .leftJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(eq(roles.organizationId, organizationId));
+
+    // Group users with their roles
+    const userMap = new Map<string, User & { roles: Role[] }>();
+    
+    for (const row of usersWithRoles) {
+      const user = row.users;
+      const role = row.roles;
+      
+      if (!userMap.has(user.id)) {
+        userMap.set(user.id, { ...user, roles: [] });
+      }
+      
+      if (role) {
+        userMap.get(user.id)!.roles.push(role);
+      }
+    }
+    
+    return Array.from(userMap.values());
+  }
+
+  async updateUserRole(userId: string, organizationId: string, newRoleId: string): Promise<UserRole> {
+    // Remove existing roles for this organization
+    await db.delete(userRoles).where(
+      and(
+        eq(userRoles.userId, userId),
+        eq(roles.organizationId, organizationId)
+      )
+    );
+
+    // Add new role
+    return await this.assignUserRole({
+      userId,
+      roleId: newRoleId,
+      assignedBy: userId, // For now, assuming self-assignment
+    });
+  }
+
+  async removeUserFromOrganization(userId: string, organizationId: string): Promise<void> {
+    // Remove all role assignments for this user in this organization
+    await db.delete(userRoles).where(
+      and(
+        eq(userRoles.userId, userId),
+        eq(roles.organizationId, organizationId)
+      )
+    );
+  }
+
+  // Performance optimization - get all user permissions in one query
+  async getUserPermissions(userId: string): Promise<Set<string>> {
+    const results = await db
+      .select({ permission: rolePermissions.permission })
+      .from(userRoles)
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .innerJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
+      .where(eq(userRoles.userId, userId));
+    
+    return new Set(results.map(row => row.permission));
   }
 }
 

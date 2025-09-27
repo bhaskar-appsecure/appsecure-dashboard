@@ -1,13 +1,17 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, hasPermission, isSuperAdmin } from "./replitAuth";
 import { 
   insertFindingSchema,
   insertProjectSchema,
   insertCredentialSchema, 
   insertPostmanCollectionSchema, 
-  insertReportExportSchema 
+  insertReportExportSchema,
+  insertRoleSchema,
+  insertRolePermissionSchema,
+  insertUserRoleSchema,
+  insertUserInvitationSchema
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import DOMPurify from 'dompurify';
@@ -533,6 +537,294 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating report export:", error);
       res.status(500).json({ message: "Failed to create report export" });
+    }
+  });
+
+  // User Management Routes
+  // Role management routes
+  app.get('/api/roles', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+      
+      const roles = await storage.getRolesByOrganization(user.organizationId);
+      res.json(roles);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      res.status(500).json({ message: "Failed to fetch roles" });
+    }
+  });
+
+  app.post('/api/roles', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      const parseResult = insertRoleSchema.safeParse({
+        ...req.body,
+        organizationId: user.organizationId
+      });
+
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid role data",
+          error: fromZodError(parseResult.error).toString()
+        });
+      }
+
+      const role = await storage.createRole(parseResult.data);
+      
+      // Add permissions if provided
+      if (req.body.permissions && Array.isArray(req.body.permissions)) {
+        for (const permission of req.body.permissions) {
+          await storage.addRolePermission({
+            roleId: role.id,
+            permission
+          });
+        }
+      }
+
+      res.json(role);
+    } catch (error) {
+      console.error("Error creating role:", error);
+      res.status(500).json({ message: "Failed to create role" });
+    }
+  });
+
+  app.put('/api/roles/:id', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      // Verify role belongs to user's organization
+      const existingRole = await storage.getRole(req.params.id);
+      if (!existingRole) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      if (existingRole.organizationId !== user.organizationId) {
+        return res.status(403).json({ message: "Cannot modify roles from other organizations" });
+      }
+
+      // Validate the update data - exclude organizationId to prevent org changes
+      const updateSchema = insertRoleSchema.omit({ organizationId: true }).partial();
+      const parseResult = updateSchema.safeParse(req.body);
+      
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid role update data",
+          error: fromZodError(parseResult.error).toString()
+        });
+      }
+
+      const role = await storage.updateRole(req.params.id, parseResult.data);
+      res.json(role);
+    } catch (error) {
+      console.error("Error updating role:", error);
+      res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+
+  app.delete('/api/roles/:id', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      // Verify role belongs to user's organization
+      const existingRole = await storage.getRole(req.params.id);
+      if (!existingRole) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      if (existingRole.organizationId !== user.organizationId) {
+        return res.status(403).json({ message: "Cannot delete roles from other organizations" });
+      }
+
+      await storage.deleteRole(req.params.id);
+      res.json({ message: "Role deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting role:", error);
+      res.status(500).json({ message: "Failed to delete role" });
+    }
+  });
+
+  // Role permissions routes
+  app.get('/api/roles/:id/permissions', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
+    try {
+      const permissions = await storage.getRolePermissions(req.params.id);
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ message: "Failed to fetch role permissions" });
+    }
+  });
+
+  app.post('/api/roles/:id/permissions', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
+    try {
+      const parseResult = insertRolePermissionSchema.safeParse({
+        roleId: req.params.id,
+        permission: req.body.permission
+      });
+
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid permission data",
+          error: fromZodError(parseResult.error).toString()
+        });
+      }
+
+      const rolePermission = await storage.addRolePermission(parseResult.data);
+      res.json(rolePermission);
+    } catch (error) {
+      console.error("Error adding role permission:", error);
+      res.status(500).json({ message: "Failed to add role permission" });
+    }
+  });
+
+  app.delete('/api/roles/:id/permissions/:permission', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
+    try {
+      await storage.removeRolePermission(req.params.id, req.params.permission);
+      res.json({ message: "Permission removed successfully" });
+    } catch (error) {
+      console.error("Error removing role permission:", error);
+      res.status(500).json({ message: "Failed to remove role permission" });
+    }
+  });
+
+  // User management routes
+  app.get('/api/users', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+      
+      const users = await storage.getUsersByOrganization(user.organizationId);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.post('/api/users/:id/roles', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
+    try {
+      const parseResult = insertUserRoleSchema.safeParse({
+        userId: req.params.id,
+        roleId: req.body.roleId,
+        assignedBy: req.user.claims.sub
+      });
+
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid user role data",
+          error: fromZodError(parseResult.error).toString()
+        });
+      }
+
+      const userRole = await storage.assignUserRole(parseResult.data);
+      res.json(userRole);
+    } catch (error) {
+      console.error("Error assigning user role:", error);
+      res.status(500).json({ message: "Failed to assign user role" });
+    }
+  });
+
+  app.delete('/api/users/:userId/roles/:roleId', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
+    try {
+      await storage.removeUserRole(req.params.userId, req.params.roleId);
+      res.json({ message: "User role removed successfully" });
+    } catch (error) {
+      console.error("Error removing user role:", error);
+      res.status(500).json({ message: "Failed to remove user role" });
+    }
+  });
+
+  app.get('/api/users/:id/roles', isAuthenticated, async (req: any, res) => {
+    try {
+      const userRoles = await storage.getUserRoles(req.params.id);
+      res.json(userRoles);
+    } catch (error) {
+      console.error("Error fetching user roles:", error);
+      res.status(500).json({ message: "Failed to fetch user roles" });
+    }
+  });
+
+  // User invitation routes
+  app.get('/api/invitations', isAuthenticated, hasPermission('invite_users'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+      
+      const invitations = await storage.getUserInvitations(user.organizationId);
+      res.json(invitations);
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  app.post('/api/invitations', isAuthenticated, hasPermission('invite_users'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      // Generate a unique token
+      const token = require('crypto').randomBytes(32).toString('hex');
+      
+      // Set expiration to 7 days from now
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const parseResult = insertUserInvitationSchema.safeParse({
+        email: req.body.email,
+        organizationId: user.organizationId,
+        roleId: req.body.roleId,
+        invitedBy: userId,
+        token,
+        expiresAt
+      });
+
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid invitation data",
+          error: fromZodError(parseResult.error).toString()
+        });
+      }
+
+      const invitation = await storage.createUserInvitation(parseResult.data);
+      res.json({ ...invitation, invitationUrl: `${req.protocol}://${req.get('host')}/accept-invitation?token=${token}` });
+    } catch (error) {
+      console.error("Error creating invitation:", error);
+      res.status(500).json({ message: "Failed to create invitation" });
+    }
+  });
+
+  app.post('/api/invitations/:token/accept', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = await storage.acceptInvitation(req.params.token, userId);
+      res.json(userRole);
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      res.status(500).json({ message: "Failed to accept invitation" });
     }
   });
 

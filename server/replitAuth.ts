@@ -155,3 +155,142 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return;
   }
 };
+
+// Role-based access control middleware
+export const hasPermission = (requiredPermission: string): RequestHandler => {
+  return async (req, res, next) => {
+    try {
+      const user = req.user as any;
+      
+      if (!req.isAuthenticated() || !user?.claims?.sub) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const userId = user.claims.sub;
+      
+      // Check if user is super admin first (bypass all permissions)
+      const dbUser = await storage.getUser(userId);
+      if (dbUser?.role === 'super_admin') {
+        return next();
+      }
+      
+      // Get user permissions efficiently in one query
+      const userPermissions = await storage.getUserPermissions(userId);
+      
+      if (!userPermissions.has(requiredPermission)) {
+        return res.status(403).json({ 
+          message: "Access denied", 
+          requiredPermission 
+        });
+      }
+      
+      next();
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      res.status(500).json({ message: "Error checking permissions" });
+    }
+  };
+};
+
+// Check multiple permissions (user must have ALL of them)
+export const hasAllPermissions = (requiredPermissions: string[]): RequestHandler => {
+  return async (req, res, next) => {
+    try {
+      const user = req.user as any;
+      
+      if (!req.isAuthenticated() || !user?.claims?.sub) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const userId = user.claims.sub;
+      
+      // Check if user is super admin first (bypass all permissions)
+      const dbUser = await storage.getUser(userId);
+      if (dbUser?.role === 'super_admin') {
+        return next();
+      }
+      
+      // Get user permissions efficiently in one query
+      const userPermissions = await storage.getUserPermissions(userId);
+      
+      // Check if user has all required permissions
+      const missingPermissions = requiredPermissions.filter(p => !userPermissions.has(p));
+      
+      if (missingPermissions.length > 0) {
+        return res.status(403).json({ 
+          message: "Access denied", 
+          missingPermissions 
+        });
+      }
+      
+      next();
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      res.status(500).json({ message: "Error checking permissions" });
+    }
+  };
+};
+
+// Check if user has any of the provided permissions
+export const hasAnyPermission = (allowedPermissions: string[]): RequestHandler => {
+  return async (req, res, next) => {
+    try {
+      const user = req.user as any;
+      
+      if (!req.isAuthenticated() || !user?.claims?.sub) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const userId = user.claims.sub;
+      
+      // Check if user is super admin first (bypass all permissions)
+      const dbUser = await storage.getUser(userId);
+      if (dbUser?.role === 'super_admin') {
+        return next();
+      }
+      
+      // Get user permissions efficiently in one query
+      const userPermissions = await storage.getUserPermissions(userId);
+      
+      // Check if user has any of the allowed permissions
+      const hasAllowedPermission = allowedPermissions.some(p => userPermissions.has(p));
+      
+      if (!hasAllowedPermission) {
+        return res.status(403).json({ 
+          message: "Access denied", 
+          allowedPermissions 
+        });
+      }
+      
+      next();
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      res.status(500).json({ message: "Error checking permissions" });
+    }
+  };
+};
+
+// Super admin check - users with role 'super_admin'
+export const isSuperAdmin: RequestHandler = async (req, res, next) => {
+  try {
+    const user = req.user as any;
+    
+    if (!req.isAuthenticated() || !user?.claims?.sub) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const userId = user.claims.sub;
+    const dbUser = await storage.getUser(userId);
+    
+    if (dbUser?.role !== 'super_admin') {
+      return res.status(403).json({ 
+        message: "Super admin access required" 
+      });
+    }
+    
+    next();
+  } catch (error) {
+    console.error("Error checking super admin status:", error);
+    res.status(500).json({ message: "Error checking admin status" });
+  }
+};
