@@ -73,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Project routes
   app.get('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const projects = await storage.getProjectsByUser(userId);
       res.json(projects);
     } catch (error) {
@@ -84,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const project = await storage.getProject(req.params.id);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
@@ -106,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create project
   app.post('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       
       console.log("Project creation request body:", JSON.stringify(req.body, null, 2));
       
@@ -127,9 +127,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Update user with the organization
           await storage.upsertUser({
             id: userId,
-            email: req.user.claims.email,
-            firstName: req.user.claims.first_name,
-            lastName: req.user.claims.last_name,
+            email: (req as any).user.email,
+            firstName: (req as any).user.firstName,
+            lastName: (req as any).user.lastName,
             organizationId: organizationId,
             role: "researcher"
           });
@@ -172,7 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Finding routes
   app.get('/api/projects/:projectId/findings', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       
       // Verify user has access to this project first
       const hasAccess = await storage.hasProjectAccess(userId, req.params.projectId);
@@ -190,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/findings/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const finding = await storage.getFinding(req.params.id);
       if (!finding) {
         return res.status(404).json({ message: "Finding not found" });
@@ -212,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all findings for a user across all projects
   app.get('/api/findings', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const findings = await storage.getFindingsByUser(userId);
       res.json(findings);
     } catch (error) {
@@ -223,7 +223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/projects/:projectId/findings', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       
       // Verify user has access to this project first
       const hasAccess = await storage.hasProjectAccess(userId, req.params.projectId);
@@ -267,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update finding
   app.patch('/api/findings/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const finding = await storage.getFinding(req.params.id);
       if (!finding) {
         return res.status(404).json({ message: "Finding not found" });
@@ -326,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get activity logs for a finding
   app.get('/api/findings/:id/activities', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const finding = await storage.getFinding(req.params.id);
       if (!finding) {
         return res.status(404).json({ message: "Finding not found" });
@@ -349,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get comments for a finding
   app.get('/api/findings/:id/comments', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const finding = await storage.getFinding(req.params.id);
       if (!finding) {
         return res.status(404).json({ message: "Finding not found" });
@@ -372,7 +372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create comment for a finding
   app.post('/api/findings/:id/comments', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const finding = await storage.getFinding(req.params.id);
       if (!finding) {
         return res.status(404).json({ message: "Finding not found" });
@@ -401,7 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Project credentials routes
   app.get('/api/projects/:projectId/credentials', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       
       // Verify user has access to this project first
       const project = await storage.getProject(req.params.projectId);
@@ -419,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/projects/:projectId/credentials', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       
       // Verify user has access to this project first
       const project = await storage.getProject(req.params.projectId);
@@ -454,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Postman collections routes
   app.get('/api/projects/:projectId/postman-collections', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       
       // Verify user has access to this project first
       const project = await storage.getProject(req.params.projectId);
@@ -472,7 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/projects/:projectId/postman-collections', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       
       // Verify user has access to this project first
       const project = await storage.getProject(req.params.projectId);
@@ -507,7 +507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Report export routes
   app.get('/api/projects/:projectId/exports', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       
       // Verify user has access to this project first
       const project = await storage.getProject(req.params.projectId);
@@ -525,7 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/projects/:projectId/export', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       
       // Verify user has access to this project first
       const project = await storage.getProject(req.params.projectId);
@@ -565,7 +565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Role management routes
   app.get('/api/roles', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const user = await storage.getUser(userId);
       if (!user?.organizationId) {
         return res.status(400).json({ message: "User must belong to an organization" });
@@ -581,7 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/roles', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const user = await storage.getUser(userId);
       if (!user?.organizationId) {
         return res.status(400).json({ message: "User must belong to an organization" });
@@ -620,7 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/roles/:id', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const user = await storage.getUser(userId);
       if (!user?.organizationId) {
         return res.status(400).json({ message: "User must belong to an organization" });
@@ -656,7 +656,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/roles/:id', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const user = await storage.getUser(userId);
       if (!user?.organizationId) {
         return res.status(400).json({ message: "User must belong to an organization" });
@@ -725,7 +725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User management routes
   app.get('/api/users', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const user = await storage.getUser(userId);
       if (!user?.organizationId) {
         return res.status(400).json({ message: "User must belong to an organization" });
@@ -744,7 +744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parseResult = insertUserRoleSchema.safeParse({
         userId: req.params.id,
         roleId: req.body.roleId,
-        assignedBy: req.user.claims.sub
+        assignedBy: (req as any).user.id
       });
 
       if (!parseResult.success) {
@@ -860,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/role-permissions', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const user = await storage.getUser(userId);
       if (!user?.organizationId) {
         return res.status(400).json({ message: "User must belong to an organization" });
@@ -876,7 +876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/user-roles', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const user = await storage.getUser(userId);
       if (!user?.organizationId) {
         return res.status(400).json({ message: "User must belong to an organization" });
@@ -893,7 +893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User invitation routes
   app.get('/api/invitations', isAuthenticated, hasPermission('invite_users'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const user = await storage.getUser(userId);
       if (!user?.organizationId) {
         return res.status(400).json({ message: "User must belong to an organization" });
@@ -909,7 +909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/invitations', isAuthenticated, hasPermission('invite_users'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const user = await storage.getUser(userId);
       if (!user?.organizationId) {
         return res.status(400).json({ message: "User must belong to an organization" });

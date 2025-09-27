@@ -4,6 +4,41 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
+// Simple in-memory rate limiting for login attempts
+const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
+const MAX_LOGIN_ATTEMPTS = 5;
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+
+const checkRateLimit = (ip: string): boolean => {
+  const now = Date.now();
+  const attempts = loginAttempts.get(ip);
+  
+  if (!attempts) {
+    loginAttempts.set(ip, { count: 1, lastAttempt: now });
+    return true;
+  }
+  
+  // Reset if outside window
+  if (now - attempts.lastAttempt > RATE_LIMIT_WINDOW) {
+    loginAttempts.set(ip, { count: 1, lastAttempt: now });
+    return true;
+  }
+  
+  // Check if exceeded limit
+  if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
+    return false;
+  }
+  
+  // Increment count
+  attempts.count++;
+  attempts.lastAttempt = now;
+  return true;
+};
+
+const resetRateLimit = (ip: string): void => {
+  loginAttempts.delete(ip);
+};
+
 const SALT_ROUNDS = 12;
 
 // Password utilities
@@ -33,6 +68,7 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // CSRF protection
       maxAge: sessionTtl,
     },
   });
@@ -192,8 +228,16 @@ export async function setupAuth(app: Express) {
   // Login endpoint
   app.post("/api/login", async (req, res) => {
     try {
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+      
+      // Check rate limit
+      if (!checkRateLimit(clientIp)) {
+        return res.status(429).json({ 
+          message: "Too many login attempts. Please try again later." 
+        });
+      }
+
       const { email, password } = req.body;
-      console.log("Login attempt for email:", email);
 
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
@@ -201,20 +245,13 @@ export async function setupAuth(app: Express) {
 
       // Get user by email
       const user = await storage.getUserByEmail(email);
-      console.log("User found:", user ? `${user.id} (${user.email})` : "none");
-      
       if (!user || !user.passwordHash) {
-        console.log("Login failed: User not found or no password hash");
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
       // Verify password
-      console.log("Verifying password for user:", user.email);
       const isValidPassword = await verifyPassword(password, user.passwordHash);
-      console.log("Password verification result:", isValidPassword);
-      
       if (!isValidPassword) {
-        console.log("Login failed: Invalid password");
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
@@ -223,18 +260,29 @@ export async function setupAuth(app: Express) {
         return res.status(401).json({ message: "Account is deactivated" });
       }
 
-      // Create session
-      req.session.userId = user.id;
-      
-      res.json({ 
-        message: "Login successful",
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role
+      // Regenerate session to prevent session fixation
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error("Session regeneration error:", err);
+          return res.status(500).json({ message: "Internal server error" });
         }
+        
+        // Create session with new ID
+        req.session.userId = user.id;
+        
+        // Reset rate limit on successful login
+        resetRateLimit(clientIp);
+        
+        res.json({ 
+          message: "Login successful",
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role
+          }
+        });
       });
     } catch (error) {
       console.error("Login error:", error);
