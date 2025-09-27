@@ -715,7 +715,7 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .leftJoin(userRoles, eq(users.id, userRoles.userId))
       .leftJoin(roles, eq(userRoles.roleId, roles.id))
-      .where(eq(roles.organizationId, organizationId));
+      .where(eq(users.organizationId, organizationId));
 
     // Group users with their roles
     const userMap = new Map<string, User & { roles: Role[] }>();

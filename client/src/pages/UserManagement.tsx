@@ -100,14 +100,17 @@ export default function UserManagement() {
   // Invite user mutation
   const createUserMutation = useMutation({
     mutationFn: async (data: CreateUserForm) => {
-      return apiRequest('POST', '/api/users', data);
+      const response = await apiRequest('POST', '/api/users', data);
+      return await response.json();
     },
-    onSuccess: (response: any) => {
+    onSuccess: (data: any) => {
       toast({
         title: "User Created",
         description: "The user has been created successfully.",
       });
-      setCreatedUserPassword(response.password);
+      if (data.password) {
+        setCreatedUserPassword(data.password);
+      }
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/invitations'] });
       setIsCreateUserDialogOpen(false);
