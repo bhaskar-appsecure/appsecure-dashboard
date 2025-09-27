@@ -248,13 +248,21 @@ export async function setupAuth(app: Express) {
       // Hash password
       const passwordHash = await hashPassword(password);
 
-      // Create super admin user
+      // Create a default organization for the super admin
+      const defaultOrg = await storage.createOrganization({
+        name: "Admin Organization",
+        domain: email.split('@')[1] || "admin.local",
+        settings: {}
+      });
+
+      // Create super admin user with organization
       const newUser = {
         email,
         firstName: "Super",
         lastName: "Admin",
         passwordHash,
         role: "super_admin" as const,
+        organizationId: defaultOrg.id,
         isActive: true
       };
 
@@ -272,6 +280,60 @@ export async function setupAuth(app: Express) {
       });
     } catch (error) {
       console.error("Signup error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Fix existing super admin without organization - special endpoint
+  app.post("/api/fix-super-admin", async (req, res) => {
+    try {
+      const { email, fixToken } = req.body;
+
+      // Use the same hardcoded token for security
+      if (fixToken !== "Q7emI3Z3tOo6b2xc70") {
+        return res.status(403).json({ message: "Invalid fix token" });
+      }
+
+      // Get the user
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.role !== "super_admin") {
+        return res.status(403).json({ message: "Only super admin accounts can be fixed" });
+      }
+
+      if (user.organizationId) {
+        return res.status(400).json({ message: "User already has an organization" });
+      }
+
+      // Create organization for the super admin
+      const defaultOrg = await storage.createOrganization({
+        name: "AppSecure Organization",
+        domain: email.split('@')[1] || "appsecure.local",
+        settings: {}
+      });
+
+      // Update user with organization
+      const updatedUser = await storage.upsertUser({
+        ...user,
+        organizationId: defaultOrg.id
+      });
+
+      res.json({
+        message: "Super admin organization fixed successfully",
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          role: updatedUser.role,
+          organizationId: updatedUser.organizationId
+        }
+      });
+    } catch (error) {
+      console.error("Fix super admin error:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
