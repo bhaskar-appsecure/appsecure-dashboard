@@ -32,6 +32,23 @@ export const userRoleEnum = pgEnum("user_role", [
   "project_user",
   "customer_admin",
   "org_admin",
+  "super_admin",
+]);
+
+export const permissionEnum = pgEnum("permission", [
+  "view_assigned_projects",
+  "submit_finding",
+  "view_finding",
+  "edit_finding",
+  "edit_comment",
+  "view_comment",
+  "invite_users",
+  "create_projects",
+  "edit_projects",
+  "export_reports",
+  "view_all_projects",
+  "manage_users",
+  "manage_roles",
 ]);
 
 export const projectStatusEnum = pgEnum("project_status", [
@@ -283,11 +300,65 @@ export const activityLogs = pgTable("activity_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Role and Permission Management
+export const roles = pgTable("roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  organizationId: varchar("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  isSystemRole: boolean("is_system_role").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const rolePermissions = pgTable("role_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleId: varchar("role_id")
+    .references(() => roles.id, { onDelete: "cascade" })
+    .notNull(),
+  permission: permissionEnum("permission").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const userRoles = pgTable("user_roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  roleId: varchar("role_id")
+    .references(() => roles.id, { onDelete: "cascade" })
+    .notNull(),
+  assignedBy: varchar("assigned_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const userInvitations = pgTable("user_invitations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").notNull(),
+  organizationId: varchar("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  roleId: varchar("role_id")
+    .references(() => roles.id)
+    .notNull(),
+  invitedBy: varchar("invited_by")
+    .references(() => users.id)
+    .notNull(),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
   projects: many(projects),
   templates: many(reportTemplates),
+  roles: many(roles),
+  invitations: many(userInvitations),
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -303,6 +374,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   templates: many(reportTemplates),
   exports: many(reportExports),
   activities: many(activityLogs),
+  roleAssignments: many(userRoles),
+  sentInvitations: many(userInvitations),
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -413,6 +486,53 @@ export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
   }),
 }));
 
+export const rolesRelations = relations(roles, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [roles.organizationId],
+    references: [organizations.id],
+  }),
+  permissions: many(rolePermissions),
+  userAssignments: many(userRoles),
+  invitations: many(userInvitations),
+}));
+
+export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
+  role: one(roles, {
+    fields: [rolePermissions.roleId],
+    references: [roles.id],
+  }),
+}));
+
+export const userRolesRelations = relations(userRoles, ({ one }) => ({
+  user: one(users, {
+    fields: [userRoles.userId],
+    references: [users.id],
+  }),
+  role: one(roles, {
+    fields: [userRoles.roleId],
+    references: [roles.id],
+  }),
+  assignedBy: one(users, {
+    fields: [userRoles.assignedBy],
+    references: [users.id],
+  }),
+}));
+
+export const userInvitationsRelations = relations(userInvitations, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [userInvitations.organizationId],
+    references: [organizations.id],
+  }),
+  role: one(roles, {
+    fields: [userInvitations.roleId],
+    references: [roles.id],
+  }),
+  invitedBy: one(users, {
+    fields: [userInvitations.invitedBy],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   id: true,
@@ -474,6 +594,27 @@ export const insertReportExportSchema = createInsertSchema(reportExports).omit({
   createdAt: true,
 });
 
+export const insertRoleSchema = createInsertSchema(roles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserRoleSchema = createInsertSchema(userRoles).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserInvitationSchema = createInsertSchema(userInvitations).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -488,6 +629,10 @@ export type ReportExport = typeof reportExports.$inferSelect;
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type ProjectCredential = typeof projectCredentials.$inferSelect;
 export type PostmanCollection = typeof postmanCollections.$inferSelect;
+export type Role = typeof roles.$inferSelect;
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type UserRole = typeof userRoles.$inferSelect;
+export type UserInvitation = typeof userInvitations.$inferSelect;
 
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -499,6 +644,10 @@ export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
 export type InsertCredential = z.infer<typeof insertCredentialSchema>;
 export type InsertPostmanCollection = z.infer<typeof insertPostmanCollectionSchema>;
 export type InsertReportExport = z.infer<typeof insertReportExportSchema>;
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+export type InsertUserRole = z.infer<typeof insertUserRoleSchema>;
+export type InsertUserInvitation = z.infer<typeof insertUserInvitationSchema>;
 
 // Enum value types for frontend
 export type ProjectStatus = (typeof projectStatusEnum.enumValues)[number];
@@ -506,3 +655,5 @@ export type FindingStatus = (typeof findingStatusEnum.enumValues)[number];
 export type Severity = (typeof severityEnum.enumValues)[number];
 export type CredentialType = (typeof credentialTypeEnum.enumValues)[number];
 export type ReportTemplateType = (typeof reportTemplateTypeEnum.enumValues)[number];
+export type UserRoleType = (typeof userRoleEnum.enumValues)[number];
+export type Permission = (typeof permissionEnum.enumValues)[number];
