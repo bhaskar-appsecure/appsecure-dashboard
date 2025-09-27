@@ -26,16 +26,12 @@ interface Role {
 }
 
 interface Permission {
-  id: string;
   name: string;
-  description: string;
-  category: string;
 }
 
 interface RolePermission {
   roleId: string;
-  permissionId: string;
-  permission: Permission;
+  permission: string;
 }
 
 const createRoleSchema = z.object({
@@ -161,8 +157,8 @@ export default function RoleManagement() {
 
   // Add permission to role mutation
   const addPermissionMutation = useMutation({
-    mutationFn: async ({ roleId, permissionId }: { roleId: string; permissionId: string }) => {
-      return apiRequest('POST', `/api/roles/${roleId}/permissions`, { permission: permissionId });
+    mutationFn: async ({ roleId, permission }: { roleId: string; permission: string }) => {
+      return apiRequest('POST', `/api/roles/${roleId}/permissions`, { permission });
     },
     onSuccess: () => {
       toast({
@@ -182,8 +178,8 @@ export default function RoleManagement() {
 
   // Remove permission from role mutation
   const removePermissionMutation = useMutation({
-    mutationFn: async ({ roleId, permissionId }: { roleId: string; permissionId: string }) => {
-      return apiRequest('DELETE', `/api/roles/${roleId}/permissions/${permissionId}`);
+    mutationFn: async ({ roleId, permissionName }: { roleId: string; permissionName: string }) => {
+      return apiRequest('DELETE', `/api/roles/${roleId}/permissions/${permissionName}`);
     },
     onSuccess: () => {
       toast({
@@ -228,14 +224,14 @@ export default function RoleManagement() {
   };
 
   const hasPermission = (roleId: string, permissionId: string) => {
-    return rolePermissions.some(rp => rp.roleId === roleId && rp.permissionId === permissionId);
+    return rolePermissions.some(rp => rp.roleId === roleId && rp.permission === permissionId);
   };
 
-  const handlePermissionToggle = (roleId: string, permissionId: string, isChecked: boolean) => {
+  const handlePermissionToggle = (roleId: string, permissionName: string, isChecked: boolean) => {
     if (isChecked) {
-      addPermissionMutation.mutate({ roleId, permissionId });
+      addPermissionMutation.mutate({ roleId, permission: permissionName });
     } else {
-      removePermissionMutation.mutate({ roleId, permissionId });
+      removePermissionMutation.mutate({ roleId, permissionName });
     }
   };
 
@@ -547,27 +543,27 @@ export default function RoleManagement() {
                   <div className="grid grid-cols-1 gap-3 ml-6">
                     {categoryPermissions.map((permission) => (
                       <div 
-                        key={permission.id} 
+                        key={permission.name} 
                         className="flex items-center space-x-3 p-3 border rounded-lg"
-                        data-testid={`permission-item-${permission.id}`}
+                        data-testid={`permission-item-${permission.name}`}
                       >
                         <Checkbox
-                          id={permission.id}
-                          checked={hasPermission(selectedRole.id, permission.id)}
+                          id={permission.name}
+                          checked={hasPermission(selectedRole.id, permission.name)}
                           onCheckedChange={(checked) => 
-                            handlePermissionToggle(selectedRole.id, permission.id, !!checked)
+                            handlePermissionToggle(selectedRole.id, permission.name, !!checked)
                           }
-                          data-testid={`checkbox-permission-${permission.id}`}
+                          data-testid={`checkbox-permission-${permission.name}`}
                         />
                         <div className="flex-1">
                           <Label 
-                            htmlFor={permission.id} 
+                            htmlFor={permission.name} 
                             className="text-sm font-medium cursor-pointer"
                           >
                             {permission.name}
                           </Label>
                           <p className="text-xs text-muted-foreground">
-                            {permission.description}
+                            {permission.name}
                           </p>
                         </div>
                       </div>
