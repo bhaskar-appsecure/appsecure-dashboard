@@ -162,7 +162,7 @@ export default function RoleManagement() {
   // Add permission to role mutation
   const addPermissionMutation = useMutation({
     mutationFn: async ({ roleId, permissionId }: { roleId: string; permissionId: string }) => {
-      return apiRequest('POST', `/api/roles/${roleId}/permissions`, { permissionId });
+      return apiRequest('POST', `/api/roles/${roleId}/permissions`, { permission: permissionId });
     },
     onSuccess: () => {
       toast({
