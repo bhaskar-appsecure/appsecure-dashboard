@@ -13,7 +13,7 @@ import Dashboard from "@/pages/Dashboard";
 import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
 import MyFindings from "@/pages/MyFindings";
-import FindingDetail from "@/pages/FindingDetail";
+import FindingDetail from "./pages/FindingDetail";
 import CreateFinding from "@/pages/CreateFinding";
 
 function AuthenticatedRouter() {
