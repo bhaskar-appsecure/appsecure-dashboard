@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Eye } from "lucide-react";
+import { Search, Filter, Eye, Plus } from "lucide-react";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { format } from "date-fns";
@@ -87,6 +87,12 @@ export default function MyFindings() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/findings/new">
+              <Button data-testid="button-create-finding">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Finding
+              </Button>
+            </Link>
             <Badge variant="outline" data-testid="badge-total-findings">
               Total: {findings.length}
             </Badge>

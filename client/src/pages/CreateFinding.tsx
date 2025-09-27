@@ -13,15 +13,29 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { ArrowLeft, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { CVSSCalculator } from "@/components/CVSSCalculator";
+import { RichTextEditor } from "@/components/RichTextEditor";
+import { FileUpload } from "@/components/FileUpload";
+import { FindingPreview } from "@/components/FindingPreview";
 
 const createFindingSchema = z.object({
   title: z.string().min(1, "Title is required"),
   projectId: z.string().min(1, "Project is required"),
   severity: z.enum(["critical", "high", "medium", "low", "informational"]),
+  cvssVector: z.string().optional(),
+  cvssScore: z.number().optional(),
   descriptionHtml: z.string().optional(),
   stepsHtml: z.string().optional(),
   impactHtml: z.string().optional(),
   fixHtml: z.string().optional(),
+  proofOfConceptFiles: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    size: z.number(),
+    type: z.string(),
+    url: z.string(),
+    markdownSyntax: z.string(),
+  })).optional(),
 });
 
 type CreateFindingForm = z.infer<typeof createFindingSchema>;
@@ -45,10 +59,13 @@ export default function CreateFinding() {
       title: "",
       projectId: "",
       severity: "medium",
+      cvssVector: "",
+      cvssScore: 0,
       descriptionHtml: "",
       stepsHtml: "",
       impactHtml: "",
       fixHtml: "",
+      proofOfConceptFiles: [],
     },
   });
 
@@ -165,30 +182,16 @@ export default function CreateFinding() {
                   />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="severity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Severity *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-severity">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="critical">Critical</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="informational">Informational</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="col-span-full">
+                  <CVSSCalculator
+                    value={form.watch('cvssVector')}
+                    onChange={(vector, score, severity) => {
+                      form.setValue('cvssVector', vector);
+                      form.setValue('cvssScore', score);
+                      form.setValue('severity', severity as any);
+                    }}
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -205,11 +208,11 @@ export default function CreateFinding() {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Textarea
-                            {...field}
-                            rows={8}
+                          <RichTextEditor
+                            content={field.value || ''}
+                            onChange={field.onChange}
                             placeholder="Describe the vulnerability in detail..."
-                            data-testid="textarea-description"
+                            className="min-h-[200px]"
                           />
                         </FormControl>
                         <FormMessage />
@@ -230,11 +233,11 @@ export default function CreateFinding() {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Textarea
-                            {...field}
-                            rows={8}
-                            placeholder="1. Step one&#10;2. Step two&#10;3. Result"
-                            data-testid="textarea-steps"
+                          <RichTextEditor
+                            content={field.value || ''}
+                            onChange={field.onChange}
+                            placeholder="1. Step one\n2. Step two\n3. Result"
+                            className="min-h-[200px]"
                           />
                         </FormControl>
                         <FormMessage />
@@ -255,11 +258,11 @@ export default function CreateFinding() {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Textarea
-                            {...field}
-                            rows={8}
+                          <RichTextEditor
+                            content={field.value || ''}
+                            onChange={field.onChange}
                             placeholder="Describe the potential impact and risks..."
-                            data-testid="textarea-impact"
+                            className="min-h-[200px]"
                           />
                         </FormControl>
                         <FormMessage />
@@ -280,11 +283,11 @@ export default function CreateFinding() {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Textarea
-                            {...field}
-                            rows={8}
+                          <RichTextEditor
+                            content={field.value || ''}
+                            onChange={field.onChange}
                             placeholder="Provide recommendations for fixing this vulnerability..."
-                            data-testid="textarea-fix"
+                            className="min-h-[200px]"
                           />
                         </FormControl>
                         <FormMessage />
@@ -295,25 +298,48 @@ export default function CreateFinding() {
               </Card>
             </div>
 
+            {/* Proof of Concept Files */}
+            <FileUpload
+              onFilesChange={(files) => {
+                form.setValue('proofOfConceptFiles', files);
+              }}
+              multiple={true}
+              maxSize={10}
+            />
+
             {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-4">
-              <Link href="/findings">
+            <div className="flex items-center justify-between">
+              <FindingPreview
+                title={form.watch('title')}
+                severity={form.watch('severity')}
+                cvssVector={form.watch('cvssVector')}
+                cvssScore={form.watch('cvssScore')}
+                descriptionHtml={form.watch('descriptionHtml')}
+                stepsHtml={form.watch('stepsHtml')}
+                impactHtml={form.watch('impactHtml')}
+                fixHtml={form.watch('fixHtml')}
+                proofOfConceptFiles={form.watch('proofOfConceptFiles')}
+                projectName={typedProjects.find(p => p.id === form.watch('projectId'))?.name}
+              />
+              <div className="flex items-center gap-4">
+                <Link href="/findings">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    data-testid="button-cancel"
+                  >
+                    Cancel
+                  </Button>
+                </Link>
                 <Button
-                  type="button"
-                  variant="outline"
-                  data-testid="button-cancel"
+                  type="submit"
+                  disabled={createMutation.isPending}
+                  data-testid="button-create-finding"
                 >
-                  Cancel
+                  <Save className="h-4 w-4 mr-2" />
+                  {createMutation.isPending ? "Creating..." : "Create Finding"}
                 </Button>
-              </Link>
-              <Button
-                type="submit"
-                disabled={createMutation.isPending}
-                data-testid="button-create-finding"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {createMutation.isPending ? "Creating..." : "Create Finding"}
-              </Button>
+              </div>
             </div>
           </form>
         </Form>
