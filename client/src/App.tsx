@@ -10,13 +10,15 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
+import Projects from "@/pages/Projects";
+import ProjectDetail from "@/pages/ProjectDetail";
 
 function AuthenticatedRouter() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
-      <Route path="/showcase" component={() => import("@/pages/ComponentShowcase").then(m => m.default())} />
-      <Route path="/projects" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Projects</h1><p className="text-muted-foreground">Project management interface coming soon...</p></div>} />
+      <Route path="/projects" component={Projects} />
+      <Route path="/projects/:id" component={ProjectDetail} />
       <Route path="/findings" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Findings</h1><p className="text-muted-foreground">Findings management interface coming soon...</p></div>} />
       <Route path="/search" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Search</h1><p className="text-muted-foreground">Advanced search interface coming soon...</p></div>} />
       <Route path="/reports" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Reports</h1><p className="text-muted-foreground">Report generation interface coming soon...</p></div>} />

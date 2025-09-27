@@ -61,8 +61,22 @@ export const severityEnum = pgEnum("severity", [
 
 export const templateTypeEnum = pgEnum("template_type", [
   "html",
-  "docx",
+  "docx", 
   "markdown",
+]);
+
+export const credentialTypeEnum = pgEnum("credential_type", [
+  "user",
+  "admin", 
+  "service",
+]);
+
+export const reportTemplateTypeEnum = pgEnum("report_template_type", [
+  "web",
+  "mobile",
+  "network",
+  "cloud",
+  "api",
 ]);
 
 // Core entities
@@ -93,10 +107,12 @@ export const projects = pgTable("projects", {
   name: text("name").notNull(),
   description: text("description"),
   customerName: text("customer_name").notNull(),
-  scope: text("scope"),
+  inScope: text("in_scope").array().default([]),
+  outOfScope: text("out_of_scope").array().default([]),
   methodology: text("methodology"),
   startDate: timestamp("start_date"),
-  endDate: timestamp("end_date"),
+  expectedEndDate: timestamp("expected_end_date"),
+  actualEndDate: timestamp("actual_end_date"),
   status: projectStatusEnum("status").notNull().default("planned"),
   organizationId: varchar("organization_id")
     .references(() => organizations.id)
@@ -119,7 +135,7 @@ export const projectMembers = pgTable("project_members", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const findings: any = pgTable("findings", {
+export const findings = pgTable("findings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   projectId: varchar("project_id")
     .references(() => projects.id, { onDelete: "cascade" })
@@ -199,6 +215,37 @@ export const reportTemplates = pgTable("report_templates", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const projectCredentials = pgTable("project_credentials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id")
+    .references(() => projects.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  type: credentialTypeEnum("type").notNull(),
+  username: text("username"),
+  password: text("password"),
+  environment: text("environment").notNull(),
+  description: text("description"),
+  notes: text("notes"),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const postmanCollections = pgTable("postman_collections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id")
+    .references(() => projects.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  fileName: text("file_name").notNull(),
+  filePath: text("file_path").notNull(),
+  fileSize: integer("file_size").notNull(),
+  uploadedBy: varchar("uploaded_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const reportExports = pgTable("report_exports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   projectId: varchar("project_id")
@@ -207,6 +254,10 @@ export const reportExports = pgTable("report_exports", {
   templateId: varchar("template_id")
     .references(() => reportTemplates.id)
     .notNull(),
+  reportName: text("report_name").notNull(),
+  reportScope: text("report_scope"),
+  templateType: reportTemplateTypeEnum("template_type").notNull(),
+  executiveSummary: text("executive_summary"),
   format: text("format").notNull(),
   filename: text("filename").notNull(),
   filePath: text("file_path").notNull(),
@@ -406,6 +457,22 @@ export const insertTemplateSchema = createInsertSchema(reportTemplates).omit({
   updatedAt: true,
 });
 
+export const insertCredentialSchema = createInsertSchema(projectCredentials).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPostmanCollectionSchema = createInsertSchema(postmanCollections).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertReportExportSchema = createInsertSchema(reportExports).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -418,6 +485,8 @@ export type Comment = typeof comments.$inferSelect;
 export type ReportTemplate = typeof reportTemplates.$inferSelect;
 export type ReportExport = typeof reportExports.$inferSelect;
 export type ActivityLog = typeof activityLogs.$inferSelect;
+export type ProjectCredential = typeof projectCredentials.$inferSelect;
+export type PostmanCollection = typeof postmanCollections.$inferSelect;
 
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -426,3 +495,13 @@ export type InsertFinding = z.infer<typeof insertFindingSchema>;
 export type InsertEvidence = z.infer<typeof insertEvidenceSchema>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
+export type InsertCredential = z.infer<typeof insertCredentialSchema>;
+export type InsertPostmanCollection = z.infer<typeof insertPostmanCollectionSchema>;
+export type InsertReportExport = z.infer<typeof insertReportExportSchema>;
+
+// Enum value types for frontend
+export type ProjectStatus = (typeof projectStatusEnum.enumValues)[number];
+export type FindingStatus = (typeof findingStatusEnum.enumValues)[number];
+export type Severity = (typeof severityEnum.enumValues)[number];
+export type CredentialType = (typeof credentialTypeEnum.enumValues)[number];
+export type ReportTemplateType = (typeof reportTemplateTypeEnum.enumValues)[number];

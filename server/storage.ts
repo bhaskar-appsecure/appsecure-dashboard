@@ -9,6 +9,8 @@ import {
   reportTemplates,
   reportExports,
   activityLogs,
+  projectCredentials,
+  postmanCollections,
   type User,
   type UpsertUser,
   type Organization,
@@ -20,12 +22,17 @@ import {
   type ReportTemplate,
   type ReportExport,
   type ActivityLog,
+  type ProjectCredential,
+  type PostmanCollection,
   type InsertOrganization,
   type InsertProject,
   type InsertFinding,
   type InsertEvidence,
   type InsertComment,
   type InsertTemplate,
+  type InsertCredential,
+  type InsertPostmanCollection,
+  type InsertReportExport,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -46,6 +53,18 @@ export interface IStorage {
   getProjectsByOrganization(orgId: string): Promise<Project[]>;
   getProjectsByUser(userId: string): Promise<Project[]>;
   addProjectMember(projectId: string, userId: string, canEdit?: boolean): Promise<ProjectMember>;
+  
+  // Project credential operations
+  createCredential(credential: InsertCredential): Promise<ProjectCredential>;
+  getCredentialsByProject(projectId: string): Promise<ProjectCredential[]>;
+  
+  // Postman collection operations
+  createPostmanCollection(collection: InsertPostmanCollection): Promise<PostmanCollection>;
+  getPostmanCollectionsByProject(projectId: string): Promise<PostmanCollection[]>;
+  
+  // Report export operations
+  createReportExport(reportExport: InsertReportExport): Promise<ReportExport>;
+  getReportExportsByProject(projectId: string): Promise<ReportExport[]>;
   
   // Finding operations
   createFinding(finding: InsertFinding): Promise<Finding>;
@@ -127,25 +146,11 @@ export class DatabaseStorage implements IStorage {
 
   async getProjectsByUser(userId: string): Promise<Project[]> {
     return await db
-      .select({ 
-        id: projects.id,
-        name: projects.name,
-        description: projects.description,
-        customerName: projects.customerName,
-        scope: projects.scope,
-        methodology: projects.methodology,
-        startDate: projects.startDate,
-        endDate: projects.endDate,
-        status: projects.status,
-        organizationId: projects.organizationId,
-        createdBy: projects.createdBy,
-        tags: projects.tags,
-        createdAt: projects.createdAt,
-        updatedAt: projects.updatedAt,
-      })
+      .select()
       .from(projects)
       .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
-      .where(eq(projectMembers.userId, userId));
+      .where(eq(projectMembers.userId, userId))
+      .then(results => results.map(r => r.projects));
   }
 
   async addProjectMember(projectId: string, userId: string, canEdit = false): Promise<ProjectMember> {
@@ -160,6 +165,45 @@ export class DatabaseStorage implements IStorage {
   async createFinding(findingData: InsertFinding): Promise<Finding> {
     const [finding] = await db.insert(findings).values(findingData).returning();
     return finding;
+  }
+
+  // Project credential operations
+  async createCredential(credentialData: InsertCredential): Promise<ProjectCredential> {
+    const [credential] = await db.insert(projectCredentials).values(credentialData).returning();
+    return credential;
+  }
+
+  async getCredentialsByProject(projectId: string): Promise<ProjectCredential[]> {
+    return await db
+      .select()
+      .from(projectCredentials)
+      .where(eq(projectCredentials.projectId, projectId));
+  }
+
+  // Postman collection operations
+  async createPostmanCollection(collectionData: InsertPostmanCollection): Promise<PostmanCollection> {
+    const [collection] = await db.insert(postmanCollections).values(collectionData).returning();
+    return collection;
+  }
+
+  async getPostmanCollectionsByProject(projectId: string): Promise<PostmanCollection[]> {
+    return await db
+      .select()
+      .from(postmanCollections)
+      .where(eq(postmanCollections.projectId, projectId));
+  }
+
+  // Report export operations
+  async createReportExport(reportExportData: InsertReportExport): Promise<ReportExport> {
+    const [reportExport] = await db.insert(reportExports).values(reportExportData).returning();
+    return reportExport;
+  }
+
+  async getReportExportsByProject(projectId: string): Promise<ReportExport[]> {
+    return await db
+      .select()
+      .from(reportExports)
+      .where(eq(reportExports.projectId, projectId));
   }
 
   async getFinding(id: string): Promise<Finding | undefined> {
