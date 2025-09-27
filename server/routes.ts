@@ -133,6 +133,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const project = await storage.createProject(projectData);
+      
+      // Add the creator as a project member with edit permissions
+      await storage.addProjectMember(project.id, userId, true);
+      
       res.json(project);
     } catch (error) {
       console.error("Error creating project:", error);

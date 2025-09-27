@@ -607,10 +607,28 @@ export default function Projects() {
   // Real API call enabled
   const { data: projects, isLoading } = useQuery<ProjectWithStats[]>({
     queryKey: ['/api/projects'],
-    // For now we'll use mock data, but the API is ready
     queryFn: async () => {
-      // TODO: Replace with actual API call when backend is ready
-      return mockProjects;
+      const response = await fetch('/api/projects', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      const data = await response.json();
+      // Transform backend projects to include stats (for now with default values)
+      return data.map((project: Project) => ({
+        ...project,
+        teamSize: 1, // Default team size
+        findingStats: { 
+          total: 0, 
+          critical: 0, 
+          high: 0, 
+          medium: 0, 
+          low: 0, 
+          informational: 0 
+        },
+        progress: 0 // Default progress
+      }));
     }
   });
 
