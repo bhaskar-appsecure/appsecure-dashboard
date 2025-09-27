@@ -113,6 +113,7 @@ export default function UserManagement() {
       }
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/invitations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-roles'] });
       setIsCreateUserDialogOpen(false);
       form.reset();
     },
@@ -302,10 +303,11 @@ export default function UserManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="researcher">Researcher</SelectItem>
-                          <SelectItem value="project_user">Project User</SelectItem>
-                          <SelectItem value="customer_admin">Customer Admin</SelectItem>
-                          <SelectItem value="org_admin">Organization Admin</SelectItem>
+                          {roles.map((role) => (
+                            <SelectItem key={role.id} value={role.id}>
+                              {role.name} - {role.description}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

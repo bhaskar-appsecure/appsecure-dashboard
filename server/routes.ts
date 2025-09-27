@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, hasPermission, isSuperAdmin, hashPassword } from "./auth";
 import crypto from "crypto";
+import { z } from "zod";
 import { 
   insertFindingSchema,
   insertProjectSchema,
@@ -816,15 +817,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User must belong to an organization" });
       }
 
-      // Validate input using Zod schema
-      const createUserSchema = insertUserSchema.pick({
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
+      // Validate input using Zod schema for user creation with custom role
+      const createUserWithRoleSchema = z.object({
+        email: z.string().email(),
+        firstName: z.string().min(1),
+        lastName: z.string().min(1),
+        role: z.string().min(1), // This will be a role ID
       });
 
-      const validationResult = createUserSchema.safeParse(req.body);
+      const validationResult = createUserWithRoleSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Invalid input data",
@@ -832,12 +833,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { email, firstName, lastName, role } = validationResult.data;
+      const { email, firstName, lastName, role: roleId } = validationResult.data;
 
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(409).json({ message: "User with this email already exists" });
+      }
+
+      // Verify the role exists and belongs to the organization
+      const role = await storage.getRole(roleId);
+      if (!role || role.organizationId !== currentUser.organizationId) {
+        return res.status(400).json({ message: "Invalid role or role not found in organization" });
       }
 
       // Generate cryptographically secure random 16-character password
@@ -855,19 +862,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const plainPassword = await generatePassword();
       const passwordHash = await hashPassword(plainPassword);
 
-      // Create user data
+      // Create user data with default base role
       const userData = {
         email,
         firstName,
         lastName,
         passwordHash,
         organizationId: currentUser.organizationId,
-        role: role as any,
+        role: 'researcher' as any, // Default base role
         isActive: true,
       };
 
       // Create the user directly
       const newUser = await storage.upsertUser(userData);
+
+      // Assign the custom role to the user
+      await storage.assignUserRole({
+        userId: newUser.id,
+        roleId: roleId,
+        assignedBy: currentUserId,
+      });
 
       // Remove password hash from response and include plain password
       const { passwordHash: _, ...userResponse } = newUser;
