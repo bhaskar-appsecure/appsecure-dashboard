@@ -9,6 +9,24 @@ import {
   insertReportExportSchema 
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
+import DOMPurify from 'dompurify';
+import { JSDOM } from 'jsdom';
+
+// Initialize DOMPurify with JSDOM
+const window = new JSDOM('').window;
+const purify = DOMPurify(window as any);
+
+// Configure DOMPurify with a safe allowlist
+const sanitizeHtml = (html: string | undefined | null): string => {
+  if (!html) return '';
+  return purify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'blockquote', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+    ALLOW_DATA_ATTR: false,
+    FORBID_TAGS: ['script', 'object', 'embed', 'base', 'link', 'meta', 'style'],
+    FORBID_ATTR: ['style', 'onload', 'onerror', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+  });
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -137,7 +155,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const finding = await storage.createFinding(result.data);
+      // Sanitize HTML content before storing
+      const sanitizedData = {
+        ...result.data,
+        descriptionHtml: sanitizeHtml(result.data.descriptionHtml),
+        stepsHtml: sanitizeHtml(result.data.stepsHtml),
+        impactHtml: sanitizeHtml(result.data.impactHtml),
+        fixHtml: sanitizeHtml(result.data.fixHtml),
+      };
+      
+      const finding = await storage.createFinding(sanitizedData);
       res.status(201).json(finding);
     } catch (error) {
       console.error("Error creating finding:", error);
@@ -170,7 +197,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fixHtml: finding.fixHtml,
       };
       
-      const updatedFinding = await storage.updateFinding(req.params.id, req.body);
+      // Sanitize HTML content in the update data
+      const sanitizedUpdateData = { ...req.body };
+      if (sanitizedUpdateData.descriptionHtml !== undefined) {
+        sanitizedUpdateData.descriptionHtml = sanitizeHtml(sanitizedUpdateData.descriptionHtml);
+      }
+      if (sanitizedUpdateData.stepsHtml !== undefined) {
+        sanitizedUpdateData.stepsHtml = sanitizeHtml(sanitizedUpdateData.stepsHtml);
+      }
+      if (sanitizedUpdateData.impactHtml !== undefined) {
+        sanitizedUpdateData.impactHtml = sanitizeHtml(sanitizedUpdateData.impactHtml);
+      }
+      if (sanitizedUpdateData.fixHtml !== undefined) {
+        sanitizedUpdateData.fixHtml = sanitizeHtml(sanitizedUpdateData.fixHtml);
+      }
+      
+      const updatedFinding = await storage.updateFinding(req.params.id, sanitizedUpdateData);
       
       // Log the activity
       await storage.createActivityLog({
@@ -179,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         targetType: 'finding',
         targetId: req.params.id,
         oldValues,
-        newValues: req.body,
+        newValues: sanitizedUpdateData,
       });
       
       res.json(updatedFinding);

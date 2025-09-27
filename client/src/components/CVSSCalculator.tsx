@@ -78,18 +78,49 @@ const cvssMetrics = {
 };
 
 function calculateCVSS(vector: Record<string, string>) {
-  const exploitability = 8.22 * 
-    (cvssMetrics.AV.options[vector.AV as keyof typeof cvssMetrics.AV.options]?.value || 0) *
-    (cvssMetrics.AC.options[vector.AC as keyof typeof cvssMetrics.AC.options]?.value || 0) *
-    (cvssMetrics.PR.options[vector.PR as keyof typeof cvssMetrics.PR.options]?.value || 0) *
-    (cvssMetrics.UI.options[vector.UI as keyof typeof cvssMetrics.UI.options]?.value || 0);
+  // Get base metric values
+  const av = cvssMetrics.AV.options[vector.AV as keyof typeof cvssMetrics.AV.options]?.value || 0;
+  const ac = cvssMetrics.AC.options[vector.AC as keyof typeof cvssMetrics.AC.options]?.value || 0;
+  const ui = cvssMetrics.UI.options[vector.UI as keyof typeof cvssMetrics.UI.options]?.value || 0;
+  
+  // Privileges Required value depends on Scope
+  let pr;
+  if (vector.S === 'C') { // Scope Changed
+    switch (vector.PR) {
+      case 'N': pr = 0.85; break;
+      case 'L': pr = 0.68; break;
+      case 'H': pr = 0.50; break;
+      default: pr = 0;
+    }
+  } else { // Scope Unchanged
+    switch (vector.PR) {
+      case 'N': pr = 0.85; break;
+      case 'L': pr = 0.62; break;
+      case 'H': pr = 0.27; break;
+      default: pr = 0;
+    }
+  }
 
-  const impact = 1 - (
-    (1 - (cvssMetrics.C.options[vector.C as keyof typeof cvssMetrics.C.options]?.value || 0)) *
-    (1 - (cvssMetrics.I.options[vector.I as keyof typeof cvssMetrics.I.options]?.value || 0)) *
-    (1 - (cvssMetrics.A.options[vector.A as keyof typeof cvssMetrics.A.options]?.value || 0))
-  );
+  // Calculate Exploitability sub-score
+  const exploitability = 8.22 * av * ac * pr * ui;
 
+  // Get impact values
+  const impactConf = cvssMetrics.C.options[vector.C as keyof typeof cvssMetrics.C.options]?.value || 0;
+  const impactInteg = cvssMetrics.I.options[vector.I as keyof typeof cvssMetrics.I.options]?.value || 0;
+  const impactAvail = cvssMetrics.A.options[vector.A as keyof typeof cvssMetrics.A.options]?.value || 0;
+
+  // Calculate ISC_Base
+  const iscBase = 1 - ((1 - impactConf) * (1 - impactInteg) * (1 - impactAvail));
+
+  // Calculate Impact sub-score based on Scope
+  let impact;
+  if (vector.S === 'U') { // Scope Unchanged
+    impact = 6.42 * iscBase;
+  } else { // Scope Changed
+    impact = 7.52 * (iscBase - 0.029) - 3.25 * Math.pow(iscBase - 0.02, 15);
+  }
+
+  // Calculate Base Score
   let baseScore;
   if (impact <= 0) {
     baseScore = 0;
@@ -99,7 +130,8 @@ function calculateCVSS(vector: Record<string, string>) {
     baseScore = Math.min(1.08 * (impact + exploitability), 10);
   }
 
-  return Math.round(baseScore * 10) / 10;
+  // Roundup function - smallest number to 1 decimal place equal or higher than input
+  return Math.ceil(baseScore * 10) / 10;
 }
 
 function getSeverity(score: number): "critical" | "high" | "medium" | "low" | "informational" {
