@@ -107,12 +107,10 @@ export const projects = pgTable("projects", {
   name: text("name").notNull(),
   description: text("description"),
   customerName: text("customer_name").notNull(),
-  inScope: text("in_scope").array().default([]),
-  outOfScope: text("out_of_scope").array().default([]),
+  scope: text("scope"),
   methodology: text("methodology"),
   startDate: timestamp("start_date"),
-  expectedEndDate: timestamp("expected_end_date"),
-  actualEndDate: timestamp("actual_end_date"),
+  endDate: timestamp("end_date"),
   status: projectStatusEnum("status").notNull().default("planned"),
   organizationId: varchar("organization_id")
     .references(() => organizations.id)

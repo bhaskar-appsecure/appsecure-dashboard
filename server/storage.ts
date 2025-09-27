@@ -89,6 +89,9 @@ export interface IStorage {
   createTemplate(template: InsertTemplate): Promise<ReportTemplate>;
   getTemplatesByOrganization(orgId: string): Promise<ReportTemplate[]>;
   
+  // Project membership check
+  hasProjectAccess(userId: string, projectId: string): Promise<boolean>;
+  
   // Activity logging
   logActivity(
     actorId: string,
@@ -383,6 +386,32 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(reportTemplates)
       .where(eq(reportTemplates.organizationId, orgId));
+  }
+
+  // Project membership check
+  async hasProjectAccess(userId: string, projectId: string): Promise<boolean> {
+    // Check if user is the project creator
+    const project = await db
+      .select({ createdBy: projects.createdBy })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    
+    if (project.length > 0 && project[0].createdBy === userId) {
+      return true;
+    }
+    
+    // Check if user is a project member
+    const membership = await db
+      .select()
+      .from(projectMembers)
+      .where(and(
+        eq(projectMembers.projectId, projectId),
+        eq(projectMembers.userId, userId)
+      ))
+      .limit(1);
+    
+    return membership.length > 0;
   }
 
   // Activity logging

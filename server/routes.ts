@@ -47,7 +47,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify user has access to this project
-      if (project.createdBy !== userId) {
+      const hasAccess = await storage.hasProjectAccess(userId, req.params.id);
+      if (!hasAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -64,8 +65,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       // Verify user has access to this project first
-      const project = await storage.getProject(req.params.projectId);
-      if (!project || project.createdBy !== userId) {
+      const hasAccess = await storage.hasProjectAccess(userId, req.params.projectId);
+      if (!hasAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -86,8 +87,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify user has access to the parent project
-      const project = await storage.getProject(finding.projectId);
-      if (!project || project.createdBy !== userId) {
+      const hasAccess = await storage.hasProjectAccess(userId, finding.projectId);
+      if (!hasAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -115,8 +116,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       // Verify user has access to this project first
-      const project = await storage.getProject(req.params.projectId);
-      if (!project || project.createdBy !== userId) {
+      const hasAccess = await storage.hasProjectAccess(userId, req.params.projectId);
+      if (!hasAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -154,8 +155,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify user has access to the parent project
-      const project = await storage.getProject(finding.projectId);
-      if (!project || project.createdBy !== userId) {
+      const hasAccess = await storage.hasProjectAccess(userId, finding.projectId);
+      if (!hasAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -198,8 +199,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify user has access to the parent project
-      const project = await storage.getProject(finding.projectId);
-      if (!project || project.createdBy !== userId) {
+      const hasAccess = await storage.hasProjectAccess(userId, finding.projectId);
+      if (!hasAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -221,8 +222,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify user has access to the parent project
-      const project = await storage.getProject(finding.projectId);
-      if (!project || project.createdBy !== userId) {
+      const hasAccess = await storage.hasProjectAccess(userId, finding.projectId);
+      if (!hasAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -244,8 +245,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify user has access to the parent project
-      const project = await storage.getProject(finding.projectId);
-      if (!project || project.createdBy !== userId) {
+      const hasAccess = await storage.hasProjectAccess(userId, finding.projectId);
+      if (!hasAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       
