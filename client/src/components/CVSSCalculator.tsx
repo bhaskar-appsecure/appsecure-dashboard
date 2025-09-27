@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { SeverityBadge } from "./SeverityBadge";
+import { cn } from "@/lib/utils";
 
 interface CVSSCalculatorProps {
   value?: string;
@@ -159,7 +160,7 @@ export function CVSSCalculator({ value, onChange, disabled }: CVSSCalculatorProp
     <Card data-testid="cvss-calculator">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>CVSS v3.1 Calculator</span>
+          <span>Base Score</span>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="font-mono text-sm" data-testid="cvss-score">
               {score.toFixed(1)}
@@ -168,27 +169,29 @@ export function CVSSCalculator({ value, onChange, disabled }: CVSSCalculatorProp
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {Object.entries(cvssMetrics).map(([key, metric]) => (
-            <div key={key} className="space-y-2">
-              <Label htmlFor={`cvss-${key}`}>{metric.label}</Label>
-              <Select
-                value={vector[key] || ''}
-                onValueChange={(value) => handleChange(key, value)}
-                disabled={disabled}
-              >
-                <SelectTrigger id={`cvss-${key}`} data-testid={`select-cvss-${key.toLowerCase()}`}>
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(metric.options).map(([optionKey, option]) => (
-                    <SelectItem key={optionKey} value={optionKey}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div key={key} className="space-y-3">
+              <Label className="text-sm font-medium">{metric.label} ({key})</Label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(metric.options).map(([optionKey, option]) => (
+                  <Button
+                    key={optionKey}
+                    variant={vector[key] === optionKey ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleChange(key, optionKey)}
+                    disabled={disabled}
+                    data-testid={`button-cvss-${key.toLowerCase()}-${optionKey.toLowerCase()}`}
+                    className={cn(
+                      "text-xs px-3 py-1 h-auto",
+                      vector[key] === optionKey && "bg-primary text-primary-foreground"
+                    )}
+                  >
+                    {option.label} ({optionKey})
+                  </Button>
+                ))}
+              </div>
             </div>
           ))}
         </div>

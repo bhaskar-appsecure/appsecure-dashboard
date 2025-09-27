@@ -195,8 +195,8 @@ export default function CreateFinding() {
               </CardContent>
             </Card>
 
-            {/* Technical Details */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Technical Details - One by One Layout */}
+            <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Vulnerability Description</CardTitle>
@@ -298,14 +298,24 @@ export default function CreateFinding() {
               </Card>
             </div>
 
-            {/* Proof of Concept Files */}
-            <FileUpload
-              onFilesChange={(files) => {
-                form.setValue('proofOfConceptFiles', files);
-              }}
-              multiple={true}
-              maxSize={10}
-            />
+            {/* Proof of Concept Files - Optional */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Proof of Concept Files (Optional)</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Upload screenshots, files, or other evidence to support your finding
+                </p>
+              </CardHeader>
+              <CardContent>
+                <FileUpload
+                  onFilesChange={(files) => {
+                    form.setValue('proofOfConceptFiles', files);
+                  }}
+                  multiple={true}
+                  maxSize={10}
+                />
+              </CardContent>
+            </Card>
 
             {/* Action Buttons */}
             <div className="flex items-center justify-between">
