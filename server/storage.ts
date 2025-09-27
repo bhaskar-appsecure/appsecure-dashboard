@@ -70,15 +70,20 @@ export interface IStorage {
   createFinding(finding: InsertFinding): Promise<Finding>;
   getFinding(id: string): Promise<Finding | undefined>;
   getFindingsByProject(projectId: string): Promise<Finding[]>;
+  getFindingsByUser(userId: string): Promise<(Finding & { project: { name: string; id: string }; reporter: { firstName: string; lastName: string } })[]>;
   updateFinding(id: string, updates: Partial<InsertFinding>): Promise<Finding>;
+  
+  // Activity log operations
+  createActivityLog(log: any): Promise<ActivityLog>;
+  getActivityLogsByFinding(findingId: string): Promise<ActivityLog[]>;
+  
+  // Comment operations
+  createComment(comment: InsertComment): Promise<Comment>;
+  getCommentsByFinding(findingId: string): Promise<(Comment & { author: { firstName: string; lastName: string } })[]>;
   
   // Evidence operations
   addEvidence(evidence: InsertEvidence): Promise<EvidenceAttachment>;
   getEvidenceByFinding(findingId: string): Promise<EvidenceAttachment[]>;
-  
-  // Comment operations
-  addComment(comment: InsertComment): Promise<Comment>;
-  getCommentsByFinding(findingId: string): Promise<Comment[]>;
   
   // Template operations
   createTemplate(template: InsertTemplate): Promise<ReportTemplate>;
@@ -219,6 +224,77 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(findings.createdAt));
   }
 
+  async getFindingsByUser(userId: string): Promise<(Finding & { project: { name: string; id: string }; reporter: { firstName: string; lastName: string } })[]> {
+    const result = await db
+      .select({
+        // Finding fields
+        id: findings.id,
+        projectId: findings.projectId,
+        title: findings.title,
+        descriptionHtml: findings.descriptionHtml,
+        stepsHtml: findings.stepsHtml,
+        impactHtml: findings.impactHtml,
+        fixHtml: findings.fixHtml,
+        references: findings.references,
+        affectedAssets: findings.affectedAssets,
+        tags: findings.tags,
+        cvssVector: findings.cvssVector,
+        cvssScore: findings.cvssScore,
+        severity: findings.severity,
+        manualSeverityOverride: findings.manualSeverityOverride,
+        status: findings.status,
+        createdBy: findings.createdBy,
+        assignedTo: findings.assignedTo,
+        isDuplicate: findings.isDuplicate,
+        duplicateOf: findings.duplicateOf,
+        createdAt: findings.createdAt,
+        updatedAt: findings.updatedAt,
+        // Project info
+        projectName: projects.name,
+        projectIdRef: projects.id,
+        // Reporter info
+        reporterFirstName: users.firstName,
+        reporterLastName: users.lastName,
+      })
+      .from(findings)
+      .innerJoin(projects, eq(findings.projectId, projects.id))
+      .innerJoin(users, eq(findings.createdBy, users.id))
+      .where(eq(findings.createdBy, userId))
+      .orderBy(desc(findings.createdAt));
+
+    return result.map(row => ({
+      id: row.id,
+      projectId: row.projectId,
+      title: row.title,
+      descriptionHtml: row.descriptionHtml,
+      stepsHtml: row.stepsHtml,
+      impactHtml: row.impactHtml,
+      fixHtml: row.fixHtml,
+      references: row.references,
+      affectedAssets: row.affectedAssets,
+      tags: row.tags,
+      cvssVector: row.cvssVector,
+      cvssScore: row.cvssScore,
+      severity: row.severity,
+      manualSeverityOverride: row.manualSeverityOverride,
+      status: row.status,
+      createdBy: row.createdBy,
+      assignedTo: row.assignedTo,
+      isDuplicate: row.isDuplicate,
+      duplicateOf: row.duplicateOf,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      project: {
+        name: row.projectName || '',
+        id: row.projectIdRef || '',
+      },
+      reporter: {
+        firstName: row.reporterFirstName || '',
+        lastName: row.reporterLastName || '',
+      },
+    }));
+  }
+
   async updateFinding(id: string, updates: Partial<InsertFinding>): Promise<Finding> {
     const [finding] = await db
       .update(findings)
@@ -241,18 +317,59 @@ export class DatabaseStorage implements IStorage {
       .where(eq(evidenceAttachments.findingId, findingId));
   }
 
+  // Activity log operations
+  async createActivityLog(log: any): Promise<ActivityLog> {
+    const [activity] = await db.insert(activityLogs).values(log).returning();
+    return activity;
+  }
+
+  async getActivityLogsByFinding(findingId: string): Promise<ActivityLog[]> {
+    return await db
+      .select()
+      .from(activityLogs)
+      .where(eq(activityLogs.targetId, findingId))
+      .orderBy(desc(activityLogs.createdAt));
+  }
+
   // Comment operations
-  async addComment(commentData: InsertComment): Promise<Comment> {
+  async createComment(commentData: InsertComment): Promise<Comment> {
     const [comment] = await db.insert(comments).values(commentData).returning();
     return comment;
   }
 
-  async getCommentsByFinding(findingId: string): Promise<Comment[]> {
-    return await db
-      .select()
+  async getCommentsByFinding(findingId: string): Promise<(Comment & { author: { firstName: string; lastName: string } })[]> {
+    const result = await db
+      .select({
+        id: comments.id,
+        findingId: comments.findingId,
+        authorId: comments.authorId,
+        content: comments.content,
+        isPrivate: comments.isPrivate,
+        mentions: comments.mentions,
+        createdAt: comments.createdAt,
+        updatedAt: comments.updatedAt,
+        authorFirstName: users.firstName,
+        authorLastName: users.lastName,
+      })
       .from(comments)
+      .innerJoin(users, eq(comments.authorId, users.id))
       .where(eq(comments.findingId, findingId))
       .orderBy(desc(comments.createdAt));
+
+    return result.map(row => ({
+      id: row.id,
+      findingId: row.findingId,
+      authorId: row.authorId,
+      content: row.content,
+      isPrivate: row.isPrivate,
+      mentions: row.mentions,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      author: {
+        firstName: row.authorFirstName || '',
+        lastName: row.authorLastName || '',
+      },
+    }));
   }
 
   // Template operations

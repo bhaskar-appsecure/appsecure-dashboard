@@ -98,6 +98,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all findings for a user across all projects
+  app.get('/api/findings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const findings = await storage.getFindingsByUser(userId);
+      res.json(findings);
+    } catch (error) {
+      console.error("Error fetching user findings:", error);
+      res.status(500).json({ message: "Failed to fetch findings" });
+    }
+  });
+
   app.post('/api/projects/:projectId/findings', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -129,6 +141,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating finding:", error);
       res.status(500).json({ message: "Failed to create finding" });
+    }
+  });
+
+  // Update finding
+  app.patch('/api/findings/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const finding = await storage.getFinding(req.params.id);
+      if (!finding) {
+        return res.status(404).json({ message: "Finding not found" });
+      }
+      
+      // Verify user has access to the parent project
+      const project = await storage.getProject(finding.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Create activity log for the change
+      const oldValues = { 
+        title: finding.title, 
+        status: finding.status,
+        descriptionHtml: finding.descriptionHtml,
+        stepsHtml: finding.stepsHtml,
+        impactHtml: finding.impactHtml,
+        fixHtml: finding.fixHtml,
+      };
+      
+      const updatedFinding = await storage.updateFinding(req.params.id, req.body);
+      
+      // Log the activity
+      await storage.createActivityLog({
+        actorId: userId,
+        action: 'updated',
+        targetType: 'finding',
+        targetId: req.params.id,
+        oldValues,
+        newValues: req.body,
+      });
+      
+      res.json(updatedFinding);
+    } catch (error) {
+      console.error("Error updating finding:", error);
+      res.status(500).json({ message: "Failed to update finding" });
+    }
+  });
+
+  // Get activity logs for a finding
+  app.get('/api/findings/:id/activities', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const finding = await storage.getFinding(req.params.id);
+      if (!finding) {
+        return res.status(404).json({ message: "Finding not found" });
+      }
+      
+      // Verify user has access to the parent project
+      const project = await storage.getProject(finding.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const activities = await storage.getActivityLogsByFinding(req.params.id);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching activities:", error);
+      res.status(500).json({ message: "Failed to fetch activities" });
+    }
+  });
+
+  // Get comments for a finding
+  app.get('/api/findings/:id/comments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const finding = await storage.getFinding(req.params.id);
+      if (!finding) {
+        return res.status(404).json({ message: "Finding not found" });
+      }
+      
+      // Verify user has access to the parent project
+      const project = await storage.getProject(finding.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const comments = await storage.getCommentsByFinding(req.params.id);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ message: "Failed to fetch comments" });
+    }
+  });
+
+  // Create comment for a finding
+  app.post('/api/findings/:id/comments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const finding = await storage.getFinding(req.params.id);
+      if (!finding) {
+        return res.status(404).json({ message: "Finding not found" });
+      }
+      
+      // Verify user has access to the parent project
+      const project = await storage.getProject(finding.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const commentData = {
+        ...req.body,
+        findingId: req.params.id,
+        authorId: userId
+      };
+      
+      const comment = await storage.createComment(commentData);
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error("Error creating comment:", error);
+      res.status(500).json({ message: "Failed to create comment" });
     }
   });
 
