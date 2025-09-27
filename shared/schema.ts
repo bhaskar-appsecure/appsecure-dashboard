@@ -112,6 +112,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  passwordHash: text("password_hash"),
   organizationId: varchar("organization_id").references(() => organizations.id),
   role: userRoleEnum("role").notNull().default("researcher"),
   isActive: boolean("is_active").default(true),
