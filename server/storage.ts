@@ -236,9 +236,80 @@ export class DatabaseStorage implements IStorage {
       .where(eq(reportExports.projectId, projectId));
   }
 
-  async getFinding(id: string): Promise<Finding | undefined> {
-    const [finding] = await db.select().from(findings).where(eq(findings.id, id));
-    return finding;
+  async getFinding(id: string): Promise<(Finding & { project: { name: string; id: string }; reporter: { firstName: string; lastName: string } }) | undefined> {
+    const result = await db
+      .select({
+        // Finding fields
+        id: findings.id,
+        projectId: findings.projectId,
+        title: findings.title,
+        descriptionHtml: findings.descriptionHtml,
+        stepsHtml: findings.stepsHtml,
+        impactHtml: findings.impactHtml,
+        fixHtml: findings.fixHtml,
+        references: findings.references,
+        affectedAssets: findings.affectedAssets,
+        tags: findings.tags,
+        cvssVector: findings.cvssVector,
+        cvssScore: findings.cvssScore,
+        severity: findings.severity,
+        manualSeverityOverride: findings.manualSeverityOverride,
+        status: findings.status,
+        createdBy: findings.createdBy,
+        assignedTo: findings.assignedTo,
+        isDuplicate: findings.isDuplicate,
+        duplicateOf: findings.duplicateOf,
+        createdAt: findings.createdAt,
+        updatedAt: findings.updatedAt,
+        // Project info
+        projectName: projects.name,
+        projectIdRef: projects.id,
+        // Reporter info
+        reporterFirstName: users.firstName,
+        reporterLastName: users.lastName,
+      })
+      .from(findings)
+      .innerJoin(projects, eq(findings.projectId, projects.id))
+      .innerJoin(users, eq(findings.createdBy, users.id))
+      .where(eq(findings.id, id))
+      .limit(1);
+
+    if (result.length === 0) {
+      return undefined;
+    }
+
+    const row = result[0];
+    return {
+      id: row.id,
+      projectId: row.projectId,
+      title: row.title,
+      descriptionHtml: row.descriptionHtml,
+      stepsHtml: row.stepsHtml,
+      impactHtml: row.impactHtml,
+      fixHtml: row.fixHtml,
+      references: row.references,
+      affectedAssets: row.affectedAssets,
+      tags: row.tags,
+      cvssVector: row.cvssVector,
+      cvssScore: row.cvssScore,
+      severity: row.severity,
+      manualSeverityOverride: row.manualSeverityOverride,
+      status: row.status,
+      createdBy: row.createdBy,
+      assignedTo: row.assignedTo,
+      isDuplicate: row.isDuplicate,
+      duplicateOf: row.duplicateOf,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      project: {
+        name: row.projectName || '',
+        id: row.projectIdRef || '',
+      },
+      reporter: {
+        firstName: row.reporterFirstName || '',
+        lastName: row.reporterLastName || '',
+      },
+    };
   }
 
   async getFindingsByProject(projectId: string): Promise<Finding[]> {
