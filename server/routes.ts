@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, hasPermission, isSuperAdmin } from "./replitAuth";
+import { setupAuth, isAuthenticated, hasPermission, isSuperAdmin } from "./auth";
 import crypto from "crypto";
 import { 
   insertFindingSchema,
@@ -38,39 +38,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-
-  app.get('/api/auth/permissions', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const userPermissions = await storage.getUserPermissions(userId);
-      
-      // Convert Set to array of permission objects
-      const permissions = Array.from(userPermissions).map(permissionName => ({
-        name: permissionName
-      }));
-      
-      res.json(permissions);
-    } catch (error) {
-      console.error("Error fetching user permissions:", error);
-      res.status(500).json({ message: "Failed to fetch user permissions" });
-    }
-  });
+  // Auth routes are now handled in auth.ts
 
   // Bootstrap route for setting up super admin
   app.post('/api/bootstrap/super-admin', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.id;
       const { organizationId } = req.body;
 
       if (!organizationId) {
