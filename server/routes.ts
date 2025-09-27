@@ -49,6 +49,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/auth/permissions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userPermissions = await storage.getUserPermissions(userId);
+      
+      // Convert Set to array of permission objects
+      const permissions = Array.from(userPermissions).map(permissionName => ({
+        name: permissionName
+      }));
+      
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching user permissions:", error);
+      res.status(500).json({ message: "Failed to fetch user permissions" });
+    }
+  });
+
   // Bootstrap route for setting up super admin
   app.post('/api/bootstrap/super-admin', isAuthenticated, async (req: any, res) => {
     try {

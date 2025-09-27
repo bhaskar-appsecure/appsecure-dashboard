@@ -8,6 +8,7 @@ import {
   FileText,
   Users,
   Shield,
+  UserPlus,
 } from "lucide-react";
 import {
   Sidebar,
@@ -26,55 +27,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
-// Menu items based on user role
-const researcherItems = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: Home,
-  },
-  {
-    title: "My Projects",
-    url: "/projects",
-    icon: FolderOpen,
-  },
-  {
-    title: "My Findings",
-    url: "/findings",
-    icon: Bug,
-  },
-  {
-    title: "Search",
-    url: "/search",
-    icon: Search,
-  },
-];
-
-const customerItems = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: Home,
-  },
-  {
-    title: "Projects",
-    url: "/projects",
-    icon: FolderOpen,
-  },
-  {
-    title: "Reports",
-    url: "/reports",
-    icon: FileText,
-  },
-  {
-    title: "Templates",
-    url: "/templates",
-    icon: FileText,
-  },
-];
-
-const adminItems = [
+// Base navigation items that all users can see
+const baseNavigationItems = [
   {
     title: "Dashboard",
     url: "/",
@@ -90,48 +46,106 @@ const adminItems = [
     url: "/findings",
     icon: Bug,
   },
-  {
-    title: "Users",
-    url: "/users",
-    icon: Users,
+];
+
+// Additional items for different permissions
+const permissionBasedItems = {
+  search: {
+    title: "Search",
+    url: "/search",
+    icon: Search,
   },
-  {
-    title: "Roles",
-    url: "/roles",
-    icon: Shield,
+  reports: {
+    title: "Reports",
+    url: "/reports",
+    icon: FileText,
   },
-  {
+  templates: {
     title: "Templates",
     url: "/templates",
     icon: FileText,
   },
-  {
+  settings: {
     title: "Settings",
     url: "/settings",
     icon: Settings,
   },
-];
+};
+
+// Admin section items based on permissions
+const adminSectionItems = {
+  manage_users: {
+    title: "User Management",
+    url: "/users",
+    icon: Users,
+  },
+  manage_roles: {
+    title: "Role Management",
+    url: "/roles",
+    icon: Shield,
+  },
+  invite_users: {
+    title: "Invite Users",
+    url: "/users#invite",
+    icon: UserPlus,
+  },
+};
 
 export function AppSidebar() {
   const { user } = useAuth();
   const [location] = useLocation();
 
-  // TODO: Remove mock functionality - get user role from auth
-  const userRole = user?.role || 'researcher';
-  
-  const getMenuItems = () => {
-    switch (userRole) {
-      case 'customer_admin':
-      case 'project_user':
-        return customerItems;
-      case 'org_admin':
-        return adminItems;
-      default:
-        return researcherItems;
+  // Fetch user permissions from backend
+  const { data: userPermissions = [] } = useQuery({
+    queryKey: ['/api/auth/permissions'],
+    enabled: !!user
+  });
+
+  // Convert permissions array to Set for faster lookup
+  const permissions = new Set((userPermissions as any[])?.map((p: any) => p.name) || []);
+
+  // Build navigation items based on user permissions
+  const buildNavigationItems = () => {
+    const items = [...baseNavigationItems];
+
+    // Add search for researchers
+    if (permissions.has('view_findings') || permissions.has('manage_findings')) {
+      items.push(permissionBasedItems.search);
     }
+
+    // Add reports for customers
+    if (permissions.has('view_reports')) {
+      items.push(permissionBasedItems.reports);
+    }
+
+    // Add templates for all users
+    items.push(permissionBasedItems.templates);
+
+    return items;
   };
 
-  const menuItems = getMenuItems();
+  // Build admin section items based on permissions
+  const buildAdminItems = () => {
+    const adminItems = [];
+
+    if (permissions.has('manage_users')) {
+      adminItems.push(adminSectionItems.manage_users);
+    }
+
+    if (permissions.has('manage_roles')) {
+      adminItems.push(adminSectionItems.manage_roles);
+    }
+
+    if (permissions.has('invite_users')) {
+      adminItems.push(adminSectionItems.invite_users);
+    }
+
+    return adminItems;
+  };
+
+  const navigationItems = buildNavigationItems();
+  const adminItems = buildAdminItems();
+  const hasAdminAccess = adminItems.length > 0;
 
   return (
     <Sidebar data-testid="app-sidebar">
@@ -142,8 +156,10 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold">PenTest Pro</span>
-            <span className="text-xs text-muted-foreground capitalize">
-              {userRole.replace('_', ' ')}
+            <span className="text-xs text-muted-foreground">
+              {permissions.has('manage_system') ? 'Super Admin' : 
+               permissions.has('manage_users') ? 'Admin' : 
+               permissions.has('manage_findings') ? 'Researcher' : 'User'}
             </span>
           </div>
         </div>
@@ -154,19 +170,19 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
+              {navigationItems.map((item) => {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
                       asChild 
                       isActive={isActive}
-                      data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
+                      data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
                     >
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
-                        {item.title === "My Findings" && (
+                        {item.title === "Findings" && (
                           <Badge variant="secondary" className="ml-auto h-5 text-xs">
                             {/* TODO: Remove mock functionality */}
                             12
@@ -181,8 +197,37 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Quick Actions for Researchers */}
-        {userRole === 'researcher' && (
+        {/* Admin Section - Only show if user has admin permissions */}
+        {hasAdminAccess && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => {
+                  const isActive = location === item.url || 
+                    (item.url.includes('#') && location === item.url.split('#')[0]);
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton 
+                        asChild 
+                        isActive={isActive}
+                        data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                      >
+                        <Link href={item.url}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Quick Actions */}
+        {permissions.has('manage_findings') && (
           <SidebarGroup>
             <SidebarGroupLabel>Quick Actions</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -195,6 +240,28 @@ export function AppSidebar() {
                     <Link href="/findings/new">
                       <Bug className="h-4 w-4" />
                       <span>New Finding</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Additional Quick Actions for Settings */}
+        {permissions.has('manage_system') && (
+          <SidebarGroup>
+            <SidebarGroupLabel>System</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    asChild
+                    data-testid="nav-settings"
+                  >
+                    <Link href="/settings">
+                      <Settings className="h-4 w-4" />
+                      <span>Settings</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
