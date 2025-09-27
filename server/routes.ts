@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, hasPermission, isSuperAdmin } from "./replitAuth";
+import crypto from "crypto";
 import { 
   insertFindingSchema,
   insertProjectSchema,
@@ -892,7 +893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate a unique token
-      const token = require('crypto').randomBytes(32).toString('hex');
+      const token = crypto.randomBytes(32).toString('hex');
       
       // Set expiration to 7 days from now
       const expiresAt = new Date();

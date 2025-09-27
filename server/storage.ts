@@ -851,25 +851,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Additional RBAC query methods for API endpoints
-  async getUsersByOrganization(organizationId: string): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.organizationId, organizationId));
-  }
 
-  async getAllPermissions(): Promise<Permission[]> {
-    return await db.select().from(permissions);
+  async getAllPermissions(): Promise<{ name: string }[]> {
+    // Return all available permissions from the enum
+    const allPermissions = [
+      'view_assigned_projects',
+      'submit_finding',
+      'view_finding', 
+      'edit_finding',
+      'edit_comment',
+      'view_comment',
+      'invite_users',
+      'create_projects',
+      'edit_projects',
+      'export_reports',
+      'view_all_projects',
+      'manage_users',
+      'manage_roles'
+    ];
+    
+    return allPermissions.map(permission => ({ name: permission }));
   }
 
   async getRolePermissionsByOrganization(organizationId: string): Promise<any[]> {
     const results = await db.select()
       .from(rolePermissions)
       .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
-      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
       .where(eq(roles.organizationId, organizationId));
     
     return results.map(result => ({
       roleId: result.role_permissions.roleId,
-      permissionId: result.role_permissions.permissionId,
-      permission: result.permissions
+      permission: result.role_permissions.permission
     }));
   }
 
