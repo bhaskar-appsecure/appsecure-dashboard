@@ -51,28 +51,29 @@ interface UserInvitation {
   createdAt: string;
 }
 
-const inviteUserSchema = z.object({
+const createUserSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  message: z.string().optional(),
+  role: z.string().min(1, "Role is required"),
 });
 
-type InviteUserForm = z.infer<typeof inviteUserSchema>;
+type CreateUserForm = z.infer<typeof createUserSchema>;
 
 export default function UserManagement() {
   const { toast } = useToast();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [createdUserPassword, setCreatedUserPassword] = useState<string | null>(null);
 
-  const form = useForm<InviteUserForm>({
-    resolver: zodResolver(inviteUserSchema),
+  const form = useForm<CreateUserForm>({
+    resolver: zodResolver(createUserSchema),
     defaultValues: {
       email: "",
       firstName: "",
       lastName: "",
-      message: "",
+      role: "",
     },
   });
 
@@ -97,23 +98,25 @@ export default function UserManagement() {
   });
 
   // Invite user mutation
-  const inviteUserMutation = useMutation({
-    mutationFn: async (data: InviteUserForm) => {
-      return apiRequest('POST', '/api/invitations', data);
+  const createUserMutation = useMutation({
+    mutationFn: async (data: CreateUserForm) => {
+      return apiRequest('POST', '/api/users', data);
     },
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       toast({
-        title: "User Invited",
-        description: "The user invitation has been sent successfully.",
+        title: "User Created",
+        description: "The user has been created successfully.",
       });
+      setCreatedUserPassword(response.password);
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/invitations'] });
-      setIsInviteDialogOpen(false);
+      setIsCreateUserDialogOpen(false);
       form.reset();
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to invite user",
+        description: error.message || "Failed to create user",
         variant: "destructive",
       });
     },
@@ -183,8 +186,8 @@ export default function UserManagement() {
     },
   });
 
-  const onInviteSubmit = (data: InviteUserForm) => {
-    inviteUserMutation.mutate(data);
+  const onCreateUserSubmit = (data: CreateUserForm) => {
+    createUserMutation.mutate(data);
   };
 
   const getUserRoles = (userId: string) => {
@@ -218,7 +221,7 @@ export default function UserManagement() {
             Manage users, roles, and permissions for your organization
           </p>
         </div>
-        <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+        <Dialog open={isCreateUserDialogOpen} onOpenChange={setIsCreateUserDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-invite-user">
               <UserPlus className="w-4 h-4 mr-2" />
@@ -227,10 +230,10 @@ export default function UserManagement() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Invite New User</DialogTitle>
+              <DialogTitle>Create New User</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onInviteSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onCreateUserSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
@@ -285,17 +288,23 @@ export default function UserManagement() {
                 />
                 <FormField
                   control={form.control}
-                  name="message"
+                  name="role"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Invitation Message (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          {...field} 
-                          placeholder="Welcome to our security assessment platform..."
-                          data-testid="input-invite-message"
-                        />
-                      </FormControl>
+                      <FormLabel>User Role</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-user-role">
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="researcher">Researcher</SelectItem>
+                          <SelectItem value="project_user">Project User</SelectItem>
+                          <SelectItem value="customer_admin">Customer Admin</SelectItem>
+                          <SelectItem value="org_admin">Organization Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -304,21 +313,49 @@ export default function UserManagement() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsInviteDialogOpen(false)}
-                    data-testid="button-cancel-invite"
+                    onClick={() => setIsCreateUserDialogOpen(false)}
+                    data-testid="button-cancel-create"
                   >
                     Cancel
                   </Button>
                   <Button 
                     type="submit" 
-                    disabled={inviteUserMutation.isPending}
-                    data-testid="button-send-invite"
+                    disabled={createUserMutation.isPending}
+                    data-testid="button-create-user"
                   >
-                    {inviteUserMutation.isPending ? "Sending..." : "Send Invitation"}
+                    {createUserMutation.isPending ? "Creating..." : "Create User"}
                   </Button>
                 </div>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Password Display Dialog */}
+        <Dialog open={!!createdUserPassword} onOpenChange={() => setCreatedUserPassword(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>User Created Successfully</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground mb-2">
+                  The user has been created with the following password:
+                </p>
+                <div className="font-mono text-lg font-semibold p-2 bg-background rounded border">
+                  {createdUserPassword}
+                </div>
+              </div>
+              <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                <strong>Important:</strong> Please save this password securely. It will not be shown again.
+                Share it with the user through a secure channel.
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => setCreatedUserPassword(null)}>
+                  Got it
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
