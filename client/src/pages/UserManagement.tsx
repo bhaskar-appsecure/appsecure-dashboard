@@ -93,20 +93,20 @@ export default function UserManagement() {
 
   // Fetch pending invitations
   const { data: invitations = [] } = useQuery<UserInvitation[]>({
-    queryKey: ['/api/users/invitations'],
+    queryKey: ['/api/invitations'],
   });
 
   // Invite user mutation
   const inviteUserMutation = useMutation({
     mutationFn: async (data: InviteUserForm) => {
-      return apiRequest('POST', '/api/users/invite', data);
+      return apiRequest('POST', '/api/invitations', data);
     },
     onSuccess: () => {
       toast({
         title: "User Invited",
         description: "The user invitation has been sent successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/users/invitations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/invitations'] });
       setIsInviteDialogOpen(false);
       form.reset();
     },

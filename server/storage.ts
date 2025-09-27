@@ -765,10 +765,35 @@ export class DatabaseStorage implements IStorage {
 
   // Bootstrap and utility methods for super admin setup
   async bootstrapSuperAdmin(userId: string, orgId: string): Promise<void> {
-    // Get or create the user
+    // Get the user and verify they exist
     let user = await this.getUser(userId);
     if (!user) {
       throw new Error("User not found for bootstrap");
+    }
+
+    // Security check: Verify user either has no organization or belongs to the target org
+    if (user.organizationId && user.organizationId !== orgId) {
+      throw new Error("User already belongs to a different organization");
+    }
+
+    // Security check: Ensure organization has no existing super admins
+    const existingSuperAdmins = await db.select()
+      .from(users)
+      .innerJoin(userRoles, eq(users.id, userRoles.userId))
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(and(
+        eq(users.organizationId, orgId),
+        eq(roles.name, "Super Admin")
+      ));
+
+    if (existingSuperAdmins.length > 0) {
+      throw new Error("Organization already has a super admin. Bootstrap not allowed.");
+    }
+
+    // Security check: Ensure organization has minimal users (new org protection)
+    const orgUsers = await db.select().from(users).where(eq(users.organizationId, orgId));
+    if (orgUsers.length > 2) {
+      throw new Error("Bootstrap only allowed for new organizations with minimal users");
     }
 
     // Assign user to organization if not already assigned
@@ -823,6 +848,47 @@ export class DatabaseStorage implements IStorage {
     // Check if user has manage_users, manage_roles, and manage_system permissions
     const superAdminPermissions = ['manage_users', 'manage_roles', 'manage_system'];
     return superAdminPermissions.every(permission => permissions.has(permission));
+  }
+
+  // Additional RBAC query methods for API endpoints
+  async getUsersByOrganization(organizationId: string): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.organizationId, organizationId));
+  }
+
+  async getAllPermissions(): Promise<Permission[]> {
+    return await db.select().from(permissions);
+  }
+
+  async getRolePermissionsByOrganization(organizationId: string): Promise<any[]> {
+    const results = await db.select()
+      .from(rolePermissions)
+      .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+      .where(eq(roles.organizationId, organizationId));
+    
+    return results.map(result => ({
+      roleId: result.role_permissions.roleId,
+      permissionId: result.role_permissions.permissionId,
+      permission: result.permissions
+    }));
+  }
+
+  async getUserRolesByOrganization(organizationId: string): Promise<any[]> {
+    const results = await db.select()
+      .from(userRoles)
+      .innerJoin(users, eq(userRoles.userId, users.id))
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(and(
+        eq(users.organizationId, organizationId),
+        eq(roles.organizationId, organizationId)
+      ));
+    
+    return results.map(result => ({
+      userId: result.user_roles.userId,
+      roleId: result.user_roles.roleId,
+      assignedAt: result.user_roles.assignedAt,
+      role: result.roles
+    }));
   }
 }
 

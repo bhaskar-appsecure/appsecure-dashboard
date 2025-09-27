@@ -790,6 +790,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User listing and management routes
+  app.get('/api/users', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      const users = await storage.getUsersByOrganization(user.organizationId);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.get('/api/permissions', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
+    try {
+      const permissions = await storage.getAllPermissions();
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching permissions:", error);
+      res.status(500).json({ message: "Failed to fetch permissions" });
+    }
+  });
+
+  app.get('/api/role-permissions', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      const rolePermissions = await storage.getRolePermissionsByOrganization(user.organizationId);
+      res.json(rolePermissions);
+    } catch (error) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ message: "Failed to fetch role permissions" });
+    }
+  });
+
+  app.get('/api/user-roles', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      const userRoles = await storage.getUserRolesByOrganization(user.organizationId);
+      res.json(userRoles);
+    } catch (error) {
+      console.error("Error fetching user roles:", error);
+      res.status(500).json({ message: "Failed to fetch user roles" });
+    }
+  });
+
   // User invitation routes
   app.get('/api/invitations', isAuthenticated, hasPermission('invite_users'), async (req: any, res) => {
     try {
