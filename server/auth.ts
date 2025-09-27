@@ -225,6 +225,57 @@ export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
 
+  // Signup endpoint with hardcoded token for super admin creation
+  app.post("/api/signup", async (req, res) => {
+    try {
+      const { email, password, token } = req.body;
+
+      if (!email || !password || !token) {
+        return res.status(400).json({ message: "Email, password, and token are required" });
+      }
+
+      // Check hardcoded signup token
+      if (token !== "Q7emI3Z3tOo6b2xc70") {
+        return res.status(403).json({ message: "Invalid signup token" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ message: "User already exists" });
+      }
+
+      // Hash password
+      const passwordHash = await hashPassword(password);
+
+      // Create super admin user
+      const newUser = {
+        email,
+        firstName: "Super",
+        lastName: "Admin",
+        passwordHash,
+        role: "super_admin" as const,
+        isActive: true
+      };
+
+      const createdUser = await storage.upsertUser(newUser);
+
+      res.status(201).json({
+        message: "Super admin account created successfully",
+        user: {
+          id: createdUser.id,
+          email: createdUser.email,
+          firstName: createdUser.firstName,
+          lastName: createdUser.lastName,
+          role: createdUser.role
+        }
+      });
+    } catch (error) {
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Login endpoint
   app.post("/api/login", async (req, res) => {
     try {
