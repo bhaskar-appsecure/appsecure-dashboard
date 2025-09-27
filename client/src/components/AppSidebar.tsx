@@ -184,11 +184,13 @@ export function AppSidebar() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton 
-                    onClick={() => console.log('Create new finding')}
+                    asChild
                     data-testid="button-new-finding"
                   >
-                    <Bug className="h-4 w-4" />
-                    <span>New Finding</span>
+                    <Link href="/findings/new">
+                      <Bug className="h-4 w-4" />
+                      <span>New Finding</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

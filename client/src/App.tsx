@@ -14,6 +14,7 @@ import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
 import MyFindings from "@/pages/MyFindings";
 import FindingDetail from "@/pages/FindingDetail";
+import CreateFinding from "@/pages/CreateFinding";
 
 function AuthenticatedRouter() {
   return (
@@ -22,6 +23,7 @@ function AuthenticatedRouter() {
       <Route path="/projects" component={Projects} />
       <Route path="/projects/:id" component={ProjectDetail} />
       <Route path="/findings" component={MyFindings} />
+      <Route path="/findings/new" component={CreateFinding} />
       <Route path="/findings/:id" component={FindingDetail} />
       <Route path="/search" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Search</h1><p className="text-muted-foreground">Advanced search interface coming soon...</p></div>} />
       <Route path="/reports" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Reports</h1><p className="text-muted-foreground">Report generation interface coming soon...</p></div>} />
