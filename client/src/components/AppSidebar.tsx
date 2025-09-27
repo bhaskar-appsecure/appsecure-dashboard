@@ -128,15 +128,18 @@ export function AppSidebar() {
   const buildAdminItems = () => {
     const adminItems = [];
 
-    if (permissions.has('manage_users')) {
+    // Super admin users get all admin features regardless of permissions
+    const isSuperAdmin = user?.role === 'super_admin';
+
+    if (isSuperAdmin || permissions.has('manage_users')) {
       adminItems.push(adminSectionItems.manage_users);
     }
 
-    if (permissions.has('manage_roles')) {
+    if (isSuperAdmin || permissions.has('manage_roles')) {
       adminItems.push(adminSectionItems.manage_roles);
     }
 
-    if (permissions.has('invite_users')) {
+    if (isSuperAdmin || permissions.has('invite_users')) {
       adminItems.push(adminSectionItems.invite_users);
     }
 
@@ -157,9 +160,11 @@ export function AppSidebar() {
           <div className="flex flex-col">
             <span className="text-sm font-semibold">PenTest Pro</span>
             <span className="text-xs text-muted-foreground">
-              {permissions.has('manage_system') ? 'Super Admin' : 
-               permissions.has('manage_users') ? 'Admin' : 
-               permissions.has('manage_findings') ? 'Researcher' : 'User'}
+              {user?.role === 'super_admin' ? 'Super Admin' :
+               user?.role === 'org_admin' ? 'Organization Admin' :
+               user?.role === 'customer_admin' ? 'Customer Admin' :
+               user?.role === 'researcher' ? 'Researcher' :
+               user?.role === 'project_user' ? 'Project User' : 'User'}
             </span>
           </div>
         </div>
