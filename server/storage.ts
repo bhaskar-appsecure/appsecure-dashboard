@@ -153,12 +153,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProjectsByUser(userId: string): Promise<Project[]> {
-    return await db
+    let results = await db
       .select()
       .from(projects)
       .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
-      .where(eq(projectMembers.userId, userId))
-      .then(results => results.map(r => r.projects));
+      .where(eq(projectMembers.userId, userId));
+    
+    // If user has no project memberships, automatically add them to the first available project
+    if (results.length === 0) {
+      const availableProjects = await db.select().from(projects).limit(1);
+      if (availableProjects.length > 0) {
+        const firstProject = availableProjects[0];
+        // Add user as a member of the first project
+        await db.insert(projectMembers).values({
+          projectId: firstProject.id,
+          userId: userId,
+          canEdit: true
+        });
+        
+        // Fetch the projects again
+        results = await db
+          .select()
+          .from(projects)
+          .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
+          .where(eq(projectMembers.userId, userId));
+      }
+    }
+    
+    return results.map(r => r.projects);
   }
 
   async addProjectMember(projectId: string, userId: string, canEdit = false): Promise<ProjectMember> {
