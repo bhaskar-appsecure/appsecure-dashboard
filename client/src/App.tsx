@@ -48,10 +48,10 @@ function Router() {
     return <Landing />;
   }
 
-  return <AuthenticatedRouter />;
+  return <AuthenticatedApp />;
 }
 
-function App() {
+function AuthenticatedApp() {
   // Custom sidebar width for the application
   const style = {
     "--sidebar-width": "16rem",
@@ -59,36 +59,29 @@ function App() {
   } as React.CSSProperties;
 
   return (
+    <SidebarProvider style={style}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1">
+          <header className="flex items-center justify-between p-2 border-b">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <ThemeToggle />
+          </header>
+          <main className="flex-1 overflow-auto">
+            <AuthenticatedRouter />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function App() {
+  return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <div className="min-h-screen">
-          <Switch>
-            <Route path="/" component={() => {
-              const { isAuthenticated, isLoading } = useAuth();
-              
-              if (isLoading || !isAuthenticated) {
-                return <Router />;
-              }
-
-              return (
-                <SidebarProvider style={style}>
-                  <div className="flex h-screen w-full">
-                    <AppSidebar />
-                    <div className="flex flex-col flex-1">
-                      <header className="flex items-center justify-between p-2 border-b">
-                        <SidebarTrigger data-testid="button-sidebar-toggle" />
-                        <ThemeToggle />
-                      </header>
-                      <main className="flex-1 overflow-auto">
-                        <AuthenticatedRouter />
-                      </main>
-                    </div>
-                  </div>
-                </SidebarProvider>
-              );
-            }} />
-            <Route component={() => <Router />} />
-          </Switch>
+          <Router />
         </div>
         <Toaster />
       </TooltipProvider>
