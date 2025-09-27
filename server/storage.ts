@@ -762,6 +762,68 @@ export class DatabaseStorage implements IStorage {
     
     return new Set(results.map(row => row.permission));
   }
+
+  // Bootstrap and utility methods for super admin setup
+  async bootstrapSuperAdmin(userId: string, orgId: string): Promise<void> {
+    // Get or create the user
+    let user = await this.getUser(userId);
+    if (!user) {
+      throw new Error("User not found for bootstrap");
+    }
+
+    // Assign user to organization if not already assigned
+    if (!user.organizationId) {
+      await db.update(users).set({ organizationId: orgId }).where(eq(users.id, userId));
+    }
+
+    // Create or get the "Super Admin" role for this organization
+    let superAdminRole = await db.select()
+      .from(roles)
+      .where(and(eq(roles.name, "Super Admin"), eq(roles.organizationId, orgId)))
+      .limit(1);
+
+    if (superAdminRole.length === 0) {
+      // Create the Super Admin role
+      const [newRole] = await db.insert(roles).values({
+        name: "Super Admin",
+        description: "Full system administrator with all permissions",
+        organizationId: orgId
+      }).returning();
+      superAdminRole = [newRole];
+
+      // Grant all permissions to the Super Admin role
+      const allPermissions = await db.select().from(permissions);
+      const rolePermissions = allPermissions.map(permission => ({
+        roleId: newRole.id,
+        permissionId: permission.id
+      }));
+      
+      if (rolePermissions.length > 0) {
+        await db.insert(rolePermissions).values(rolePermissions);
+      }
+    }
+
+    // Assign the Super Admin role to the user if not already assigned
+    const existingUserRole = await db.select()
+      .from(userRoles)
+      .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, superAdminRole[0].id)))
+      .limit(1);
+
+    if (existingUserRole.length === 0) {
+      await db.insert(userRoles).values({
+        userId: userId,
+        roleId: superAdminRole[0].id
+      });
+    }
+  }
+
+  async isSuperAdmin(userId: string): Promise<boolean> {
+    const permissions = await this.getUserPermissions(userId);
+    
+    // Check if user has manage_users, manage_roles, and manage_system permissions
+    const superAdminPermissions = ['manage_users', 'manage_roles', 'manage_system'];
+    return superAdminPermissions.every(permission => permissions.has(permission));
+  }
 }
 
 export const storage = new DatabaseStorage();

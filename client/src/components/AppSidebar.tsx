@@ -96,6 +96,11 @@ const adminItems = [
     icon: Users,
   },
   {
+    title: "Roles",
+    url: "/roles",
+    icon: Shield,
+  },
+  {
     title: "Templates",
     url: "/templates",
     icon: FileText,

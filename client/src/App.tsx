@@ -15,6 +15,8 @@ import ProjectDetail from "@/pages/ProjectDetail";
 import MyFindings from "@/pages/MyFindings";
 import FindingDetail from "./pages/FindingDetail";
 import CreateFinding from "@/pages/CreateFinding";
+import UserManagement from "@/pages/UserManagement";
+import RoleManagement from "@/pages/RoleManagement";
 
 function AuthenticatedRouter() {
   return (
@@ -28,7 +30,8 @@ function AuthenticatedRouter() {
       <Route path="/search" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Search</h1><p className="text-muted-foreground">Advanced search interface coming soon...</p></div>} />
       <Route path="/reports" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Reports</h1><p className="text-muted-foreground">Report generation interface coming soon...</p></div>} />
       <Route path="/templates" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Templates</h1><p className="text-muted-foreground">Template management interface coming soon...</p></div>} />
-      <Route path="/users" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Users</h1><p className="text-muted-foreground">User management interface coming soon...</p></div>} />
+      <Route path="/users" component={UserManagement} />
+      <Route path="/roles" component={RoleManagement} />
       <Route path="/settings" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground">Settings interface coming soon...</p></div>} />
       <Route component={NotFound} />
     </Switch>

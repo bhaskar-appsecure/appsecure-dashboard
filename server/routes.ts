@@ -49,6 +49,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bootstrap route for setting up super admin
+  app.post('/api/bootstrap/super-admin', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { organizationId } = req.body;
+
+      if (!organizationId) {
+        return res.status(400).json({ message: "Organization ID is required" });
+      }
+
+      // Verify organization exists
+      const org = await storage.getOrganization(organizationId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      await storage.bootstrapSuperAdmin(userId, organizationId);
+      
+      res.json({ 
+        message: "Super admin setup completed successfully",
+        userId,
+        organizationId 
+      });
+    } catch (error) {
+      console.error("Error bootstrapping super admin:", error);
+      res.status(500).json({ message: "Failed to bootstrap super admin" });
+    }
+  });
+
   // Project routes
   app.get('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
