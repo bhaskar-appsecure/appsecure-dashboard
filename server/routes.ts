@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { 
-  insertFindingSchema, 
+  insertFindingSchema,
+  insertProjectSchema,
   insertCredentialSchema, 
   insertPostmanCollectionSchema, 
   insertReportExportSchema 
@@ -74,6 +75,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching project:", error);
       res.status(500).json({ message: "Failed to fetch project" });
+    }
+  });
+
+  // Create project
+  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      console.log("Project creation request body:", JSON.stringify(req.body, null, 2));
+      
+      // Get user to check organization
+      const user = await storage.getUser(userId);
+      let organizationId = user?.organizationId;
+      
+      // If user doesn't have an organization, create a default one
+      if (!organizationId) {
+        try {
+          const defaultOrg = await storage.createOrganization({
+            name: "Default Organization",
+            domain: "default.local",
+            settings: {}
+          });
+          organizationId = defaultOrg.id;
+          
+          // Update user with the organization
+          await storage.upsertUser({
+            id: userId,
+            email: req.user.claims.email,
+            firstName: req.user.claims.first_name,
+            lastName: req.user.claims.last_name,
+            organizationId: organizationId,
+            role: "researcher"
+          });
+        } catch (orgError) {
+          console.error("Error creating default organization:", orgError);
+          return res.status(500).json({ message: "Failed to setup user organization" });
+        }
+      }
+      
+      // Validate request data
+      const requestData = { ...req.body, organizationId };
+      const result = insertProjectSchema.safeParse(requestData);
+      if (!result.success) {
+        console.log("Validation failed:", result.error);
+        const errorMessage = fromZodError(result.error).toString();
+        return res.status(400).json({ message: errorMessage });
+      }
+      
+      const projectData = {
+        ...result.data,
+        createdBy: userId,
+        // Sanitize HTML content if present
+        description: sanitizeHtml(result.data.description),
+        scope: sanitizeHtml(result.data.scope),
+        methodology: sanitizeHtml(result.data.methodology)
+      };
+      
+      const project = await storage.createProject(projectData);
+      res.json(project);
+    } catch (error) {
+      console.error("Error creating project:", error);
+      res.status(500).json({ message: "Failed to create project" });
     }
   });
 
