@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, hasPermission, isSuperAdmin } from "./auth";
+import { setupAuth, isAuthenticated, hasPermission, isSuperAdmin, hashPassword } from "./auth";
 import crypto from "crypto";
 import { 
   insertFindingSchema,
@@ -12,7 +12,8 @@ import {
   insertRoleSchema,
   insertRolePermissionSchema,
   insertUserRoleSchema,
-  insertUserInvitationSchema
+  insertUserInvitationSchema,
+  insertUserSchema
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import DOMPurify from 'dompurify';
@@ -784,17 +785,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User listing and management routes
   app.get('/api/users', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user?.organizationId) {
+      const currentUser = (req as any).user;
+      if (!currentUser?.organizationId) {
         return res.status(400).json({ message: "User must belong to an organization" });
       }
 
-      const users = await storage.getUsersByOrganization(user.organizationId);
+      const users = await storage.getUsersByOrganization(currentUser.organizationId);
       res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Create user with password
+  app.post('/api/users', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      const { password, ...userData } = req.body;
+
+      if (!password) {
+        return res.status(400).json({ message: "Password is required" });
+      }
+
+      // Hash the password
+      const passwordHash = await hashPassword(password);
+
+      // Prepare user data with organization
+      const userWithOrgData = {
+        ...userData,
+        passwordHash,
+        organizationId: currentUser.organizationId,
+      };
+
+      // Validate request data
+      const parseResult = insertUserSchema.safeParse(userWithOrgData);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid user data",
+          error: fromZodError(parseResult.error).toString()
+        });
+      }
+
+      // Check if user with email already exists
+      const existingUser = await storage.getUserByEmail(parseResult.data.email);
+      if (existingUser) {
+        return res.status(409).json({ message: "User with this email already exists" });
+      }
+
+      const user = await storage.upsertUser(parseResult.data);
+      
+      // Remove password hash from response
+      const { passwordHash: _, ...userResponse } = user;
+      res.status(201).json(userResponse);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ message: "Failed to create user" });
     }
   });
 
@@ -896,11 +946,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/invitations/:token/accept', isAuthenticated, async (req: any, res) => {
+  app.post('/api/invitations/:token/accept', async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const userRole = await storage.acceptInvitation(req.params.token, userId);
-      res.json(userRole);
+      const { email, password, firstName, lastName } = req.body;
+      
+      if (!email || !password || !firstName || !lastName) {
+        return res.status(400).json({ 
+          message: "Email, password, first name, and last name are required" 
+        });
+      }
+
+      // Get invitation by token
+      const invitation = await storage.getInvitationByToken(req.params.token);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found or expired" });
+      }
+
+      // Check if invitation has expired
+      if (invitation.expiresAt < new Date()) {
+        return res.status(400).json({ message: "Invitation has expired" });
+      }
+
+      // Check if invitation email matches provided email
+      if (invitation.email !== email) {
+        return res.status(400).json({ message: "Email does not match invitation" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ message: "User with this email already exists" });
+      }
+
+      // Hash the password
+      const passwordHash = await hashPassword(password);
+
+      // Create user with invitation data
+      const userData = {
+        email,
+        firstName,
+        lastName,
+        passwordHash,
+        organizationId: invitation.organizationId,
+        role: "researcher" as const, // Default role, can be changed by role assignment
+        isActive: true,
+      };
+
+      // Validate user data
+      const parseResult = insertUserSchema.safeParse(userData);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid user data",
+          error: fromZodError(parseResult.error).toString()
+        });
+      }
+
+      // Create the user
+      const user = await storage.upsertUser(parseResult.data);
+
+      // Assign the role from invitation
+      if (invitation.roleId) {
+        await storage.assignUserRole({
+          userId: user.id,
+          roleId: invitation.roleId,
+          assignedBy: invitation.invitedBy,
+        });
+      }
+
+      // Mark invitation as used
+      await storage.markInvitationAsUsed(req.params.token, user.id);
+
+      // Create session for the new user
+      (req as any).session.userId = user.id;
+
+      // Remove password hash from response
+      const { passwordHash: _, ...userResponse } = user;
+      res.status(201).json({
+        message: "Account created successfully",
+        user: userResponse
+      });
     } catch (error) {
       console.error("Error accepting invitation:", error);
       res.status(500).json({ message: "Failed to accept invitation" });

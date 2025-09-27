@@ -193,6 +193,7 @@ export async function setupAuth(app: Express) {
   app.post("/api/login", async (req, res) => {
     try {
       const { email, password } = req.body;
+      console.log("Login attempt for email:", email);
 
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
@@ -200,13 +201,20 @@ export async function setupAuth(app: Express) {
 
       // Get user by email
       const user = await storage.getUserByEmail(email);
+      console.log("User found:", user ? `${user.id} (${user.email})` : "none");
+      
       if (!user || !user.passwordHash) {
+        console.log("Login failed: User not found or no password hash");
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
       // Verify password
+      console.log("Verifying password for user:", user.email);
       const isValidPassword = await verifyPassword(password, user.passwordHash);
+      console.log("Password verification result:", isValidPassword);
+      
       if (!isValidPassword) {
+        console.log("Login failed: Invalid password");
         return res.status(401).json({ message: "Invalid email or password" });
       }
 

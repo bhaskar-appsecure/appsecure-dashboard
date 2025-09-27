@@ -702,6 +702,12 @@ export class DatabaseStorage implements IStorage {
     return userRole;
   }
 
+  async markInvitationAsUsed(token: string, userId: string): Promise<void> {
+    // Simply delete the invitation to mark it as used
+    // This prevents it from being used again
+    await db.delete(userInvitations).where(eq(userInvitations.token, token));
+  }
+
   // User management operations
   async getUsersByOrganization(organizationId: string): Promise<(User & { roles: Role[] })[]> {
     const usersWithRoles = await db
