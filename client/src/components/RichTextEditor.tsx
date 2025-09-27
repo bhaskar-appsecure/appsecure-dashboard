@@ -41,7 +41,9 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        link: false, // Disable default link to avoid duplicate
+      }),
       Image.configure({
         HTMLAttributes: {
           class: 'max-w-full h-auto rounded-md',

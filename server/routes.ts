@@ -40,10 +40,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const project = await storage.getProject(req.params.id);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
+      
+      // Verify user has access to this project
+      if (project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       res.json(project);
     } catch (error) {
       console.error("Error fetching project:", error);
@@ -54,6 +61,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Finding routes
   app.get('/api/projects/:projectId/findings', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      
+      // Verify user has access to this project first
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const findings = await storage.getFindingsByProject(req.params.projectId);
       res.json(findings);
     } catch (error) {
@@ -64,10 +79,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/findings/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const finding = await storage.getFinding(req.params.id);
       if (!finding) {
         return res.status(404).json({ message: "Finding not found" });
       }
+      
+      // Verify user has access to the parent project
+      const project = await storage.getProject(finding.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       res.json(finding);
     } catch (error) {
       console.error("Error fetching finding:", error);
@@ -78,6 +101,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/:projectId/findings', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      
+      // Verify user has access to this project first
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const findingData = {
         ...req.body,
         projectId: req.params.projectId,
@@ -105,6 +135,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Project credentials routes
   app.get('/api/projects/:projectId/credentials', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      
+      // Verify user has access to this project first
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const credentials = await storage.getCredentialsByProject(req.params.projectId);
       res.json(credentials);
     } catch (error) {
@@ -116,6 +154,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/:projectId/credentials', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      
+      // Verify user has access to this project first
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const credentialData = {
         ...req.body,
         projectId: req.params.projectId,
@@ -143,6 +188,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Postman collections routes
   app.get('/api/projects/:projectId/postman-collections', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      
+      // Verify user has access to this project first
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const collections = await storage.getPostmanCollectionsByProject(req.params.projectId);
       res.json(collections);
     } catch (error) {
@@ -154,6 +207,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/:projectId/postman-collections', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      
+      // Verify user has access to this project first
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const collectionData = {
         ...req.body,
         projectId: req.params.projectId,
@@ -181,6 +241,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Report export routes
   app.get('/api/projects/:projectId/exports', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      
+      // Verify user has access to this project first
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const exports = await storage.getReportExportsByProject(req.params.projectId);
       res.json(exports);
     } catch (error) {
@@ -192,6 +260,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/:projectId/export', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      
+      // Verify user has access to this project first
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const exportData = {
         ...req.body,
         projectId: req.params.projectId,

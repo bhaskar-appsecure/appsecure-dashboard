@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Project, Finding, ProjectCredential, PostmanCollection, ProjectStatus, FindingStatus, Severity, CredentialType, ReportTemplateType } from "@shared/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -178,34 +180,91 @@ function ExportReportDialog({ projectId, projectName }: { projectId: string; pro
   const [templateType, setTemplateType] = useState<string>("");
   const [executiveSummary, setExecutiveSummary] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
 
   const handleExportReport = async () => {
+    if (!templateType) {
+      toast({
+        title: "Template Required",
+        description: "Please select a report template before exporting.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsExporting(true);
-    // TODO: Implement actual export functionality
-    console.log('Exporting report:', {
-      projectId,
-      reportName,
-      reportScope,
-      templateType,
-      executiveSummary
-    });
-    
-    // Simulate export delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsExporting(false);
+    try {
+      await apiRequest({
+        method: 'POST',
+        url: `/api/projects/${projectId}/export`,
+        data: {
+          reportName,
+          reportScope,
+          templateType,
+          executiveSummary,
+          includeExecutiveSummary: !!executiveSummary
+        }
+      });
+
+      // Invalidate exports cache to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'exports'] });
+      
+      toast({
+        title: "Report Export Started",
+        description: "Your security assessment report is being generated. You'll be notified when it's ready."
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to start report export. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleExportExecutiveSummary = async () => {
+    if (!executiveSummary) {
+      toast({
+        title: "Executive Summary Required",
+        description: "Please write an executive summary before exporting.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsExporting(true);
-    // TODO: Implement executive summary export
-    console.log('Exporting executive summary:', {
-      projectId,
-      reportName,
-      executiveSummary
-    });
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsExporting(false);
+    try {
+      await apiRequest({
+        method: 'POST',
+        url: `/api/projects/${projectId}/export`,
+        data: {
+          reportName: `${reportName} - Executive Summary`,
+          templateType: 'executive-summary',
+          executiveSummary,
+          includeExecutiveSummary: true
+        }
+      });
+
+      // Invalidate exports cache to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'exports'] });
+      
+      toast({
+        title: "Executive Summary Export Started",
+        description: "Your executive summary is being generated. You'll be notified when it's ready."
+      });
+    } catch (error) {
+      console.error('Executive summary export failed:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export executive summary. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
