@@ -223,9 +223,9 @@ export default function UserManagement() {
         </div>
         <Dialog open={isCreateUserDialogOpen} onOpenChange={setIsCreateUserDialogOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-invite-user">
+            <Button data-testid="button-create-user">
               <UserPlus className="w-4 h-4 mr-2" />
-              Invite User
+              Create User
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
