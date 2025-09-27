@@ -12,6 +12,8 @@ import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
+import MyFindings from "@/pages/MyFindings";
+import FindingDetail from "@/pages/FindingDetail";
 
 function AuthenticatedRouter() {
   return (
@@ -19,7 +21,8 @@ function AuthenticatedRouter() {
       <Route path="/" component={Dashboard} />
       <Route path="/projects" component={Projects} />
       <Route path="/projects/:id" component={ProjectDetail} />
-      <Route path="/findings" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Findings</h1><p className="text-muted-foreground">Findings management interface coming soon...</p></div>} />
+      <Route path="/findings" component={MyFindings} />
+      <Route path="/findings/:id" component={FindingDetail} />
       <Route path="/search" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Search</h1><p className="text-muted-foreground">Advanced search interface coming soon...</p></div>} />
       <Route path="/reports" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Reports</h1><p className="text-muted-foreground">Report generation interface coming soon...</p></div>} />
       <Route path="/templates" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Templates</h1><p className="text-muted-foreground">Template management interface coming soon...</p></div>} />
