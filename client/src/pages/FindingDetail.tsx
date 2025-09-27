@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Save, X, MessageSquare, Clock, User, Calendar, Building } from "lucide-react";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { StatusBadge } from "@/components/StatusBadge";
+import { CVSSCalculator } from "@/components/CVSSCalculator";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -23,6 +24,8 @@ interface Finding {
   stepsHtml?: string;
   impactHtml?: string;
   fixHtml?: string;
+  cvssVector?: string;
+  cvssScore?: number;
   severity: 'critical' | 'high' | 'medium' | 'low' | 'informational';
   status: string;
   createdAt: string;
@@ -401,6 +404,50 @@ export default function FindingDetail() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        {/* CVSS Score Section */}
+        <div className="space-y-6">
+          {isEditing ? (
+            <CVSSCalculator
+              value={editedFinding.cvssVector ?? typedFinding.cvssVector ?? ""}
+              onChange={(vector, score, severity) => {
+                setEditedFinding({ 
+                  ...editedFinding, 
+                  cvssVector: vector,
+                  cvssScore: score,
+                  severity: severity as any
+                });
+              }}
+              disabled={updateMutation.isPending}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>CVSS Score</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono text-sm" data-testid="cvss-score-display">
+                      {typedFinding.cvssScore?.toFixed(1) ?? "N/A"}
+                    </Badge>
+                    <SeverityBadge severity={typedFinding.severity} />
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {typedFinding.cvssVector ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">CVSS Vector</p>
+                    <p className="font-mono text-sm bg-muted p-2 rounded" data-testid="cvss-vector-display">
+                      {typedFinding.cvssVector}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No CVSS score calculated</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Activity Log */}
