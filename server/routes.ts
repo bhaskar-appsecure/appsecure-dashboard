@@ -907,6 +907,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create user directly with random password
+  app.post('/api/users', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUserId = (req as any).user.id;
+      const currentUser = await storage.getUser(currentUserId);
+      
+      // Check if user has permission (super admin or manage_users permission)
+      if (currentUser?.role !== 'super_admin') {
+        const permissions = await storage.getUserPermissions(currentUserId);
+        if (!permissions.has('manage_users')) {
+          return res.status(403).json({ message: "Insufficient permissions to create users" });
+        }
+      }
+
+      if (!currentUser?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      const { email, firstName, lastName, role } = req.body;
+
+      // Validate input
+      if (!email || !firstName || !lastName || !role) {
+        return res.status(400).json({ message: "Email, first name, last name, and role are required" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ message: "User with this email already exists" });
+      }
+
+      // Generate random 16-character password
+      const generatePassword = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+        let password = '';
+        for (let i = 0; i < 16; i++) {
+          password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return password;
+      };
+
+      const plainPassword = generatePassword();
+      const passwordHash = await hashPassword(plainPassword);
+
+      // Create user data
+      const userData = {
+        email,
+        firstName,
+        lastName,
+        passwordHash,
+        organizationId: currentUser.organizationId,
+        role: role as any,
+        isActive: true,
+      };
+
+      // Validate user data
+      const parseResult = insertUserSchema.safeParse(userData);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid user data",
+          error: fromZodError(parseResult.error).toString()
+        });
+      }
+
+      // Create the user
+      const newUser = await storage.upsertUser(parseResult.data);
+
+      // Remove password hash from response and include plain password
+      const { passwordHash: _, ...userResponse } = newUser;
+      res.status(201).json({
+        message: "User created successfully",
+        user: userResponse,
+        password: plainPassword
+      });
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
   app.post('/api/invitations', isAuthenticated, hasPermission('invite_users'), async (req: any, res) => {
     try {
       const userId = (req as any).user.id;
