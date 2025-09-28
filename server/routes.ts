@@ -20,6 +20,7 @@ import {
 import { fromZodError } from "zod-validation-error";
 import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
+import { createDefaultVAPTTemplate } from '../scripts/create-default-template';
 
 // Initialize DOMPurify with JSDOM
 const window = new JSDOM('').window;
@@ -29,11 +30,11 @@ const purify = DOMPurify(window as any);
 const sanitizeHtml = (html: string | undefined | null): string => {
   if (!html) return '';
   return purify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'blockquote', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
-    ALLOWED_ATTR: ['href', 'target', 'rel'],
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'blockquote', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span', 'img', 'style'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'width', 'height', 'style', 'class', 'id'],
     ALLOW_DATA_ATTR: false,
-    FORBID_TAGS: ['script', 'object', 'embed', 'base', 'link', 'meta', 'style'],
-    FORBID_ATTR: ['style', 'onload', 'onerror', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+    FORBID_TAGS: ['script', 'object', 'embed', 'base', 'link', 'meta'],
+    FORBID_ATTR: ['onload', 'onerror', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
   });
 };
 
@@ -69,6 +70,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error bootstrapping super admin:", error);
       res.status(500).json({ message: "Failed to bootstrap super admin" });
+    }
+  });
+
+  // Bootstrap route for creating default VAPT template
+  app.post('/api/bootstrap/default-template', isAuthenticated, hasPermission('export_reports'), async (req: any, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      // Check if default template already exists for this organization
+      const existingTemplates = await storage.getTemplatesByOrganization(user.organizationId);
+      const hasDefaultTemplate = existingTemplates.some(template => template.isDefault);
+      
+      if (hasDefaultTemplate) {
+        return res.status(400).json({ message: "Default template already exists for this organization" });
+      }
+
+      const template = await createDefaultVAPTTemplate(user.organizationId, userId);
+      
+      res.json({ 
+        message: "Default VAPT template created successfully",
+        templateId: template.id,
+        templateName: template.name
+      });
+    } catch (error) {
+      console.error("Error creating default template:", error);
+      res.status(500).json({ message: "Failed to create default template" });
     }
   });
 

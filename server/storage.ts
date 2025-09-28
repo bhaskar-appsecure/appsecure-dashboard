@@ -856,14 +856,29 @@ export class DatabaseStorage implements IStorage {
       superAdminRole = [newRole];
 
       // Grant all permissions to the Super Admin role
-      const allPermissions = await db.select().from(permissions);
-      const rolePermissions = allPermissions.map(permission => ({
+      // Import from schema to ensure consistency
+      const allPermissions = [
+        'view_assigned_projects',
+        'submit_finding', 
+        'view_finding',
+        'edit_finding',
+        'edit_comment',
+        'view_comment',
+        'invite_users',
+        'create_projects',
+        'edit_projects',
+        'export_reports',
+        'view_all_projects',
+        'manage_users',
+        'manage_roles'
+      ] as const;
+      const rolePermissionValues = allPermissions.map(permission => ({
         roleId: newRole.id,
-        permissionId: permission.id
+        permission: permission as any
       }));
       
-      if (rolePermissions.length > 0) {
-        await db.insert(rolePermissions).values(rolePermissions);
+      if (rolePermissionValues.length > 0) {
+        await db.insert(rolePermissions).values(rolePermissionValues);
       }
     }
 
@@ -937,7 +952,7 @@ export class DatabaseStorage implements IStorage {
     return results.map(result => ({
       userId: result.user_roles.userId,
       roleId: result.user_roles.roleId,
-      assignedAt: result.user_roles.assignedAt,
+      assignedBy: result.user_roles.assignedBy,
       role: result.roles
     }));
   }
