@@ -533,7 +533,7 @@ function ProjectTile({ project }: { project: ProjectWithStats }) {
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Findings:</span>
-            <span>{project.findingStats.total}</span>
+            <span>{project.findingStats?.total || 0}</span>
           </div>
         </div>
 
@@ -554,21 +554,21 @@ function ProjectTile({ project }: { project: ProjectWithStats }) {
         )}
 
         {/* Finding Stats */}
-        {project.findingStats.total > 0 && (
+        {(project.findingStats?.total || 0) > 0 && (
           <div className="flex gap-1 flex-wrap">
-            {project.findingStats.critical > 0 && (
+            {(project.findingStats?.critical || 0) > 0 && (
               <Badge variant="destructive" className="text-xs px-2 py-0">
-                {project.findingStats.critical} Critical
+                {project.findingStats?.critical || 0} Critical
               </Badge>
             )}
-            {project.findingStats.high > 0 && (
+            {(project.findingStats?.high || 0) > 0 && (
               <Badge variant="secondary" className="text-xs px-2 py-0 bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
-                {project.findingStats.high} High
+                {project.findingStats?.high || 0} High
               </Badge>
             )}
-            {project.findingStats.medium > 0 && (
+            {(project.findingStats?.medium || 0) > 0 && (
               <Badge variant="secondary" className="text-xs px-2 py-0 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                {project.findingStats.medium} Medium
+                {project.findingStats?.medium || 0} Medium
               </Badge>
             )}
           </div>
