@@ -12,8 +12,10 @@ const DEFAULT_VAPT_TEMPLATE_HTML = `<!DOCTYPE html>
     }
 
     body {
-        font-family: 'Arial';
+        font-family: 'Arial', sans-serif;
         line-height: 1.6;  
+        margin: 0;
+        padding: 0;
     }
 
     pre {
@@ -210,206 +212,219 @@ const DEFAULT_VAPT_TEMPLATE_HTML = `<!DOCTYPE html>
 <body>
     <!-- Cover Page -->
     <div class="page">
-        <div class="w-full mt-8 flex items-center">
-            <div class="flex items-center" style="width: 160px;">
-                {{#if company_logo}}
-                <img style="width: 150px;" src="{{company_logo}}" />
-                {{else}}
-                <div style="width: 150px; height: 60px; background-color: #f0f0f0; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd;">
-                    <span style="color: #666; font-size: 12px;">LOGO</span>
-                </div>
-                {{/if}}
+        <div style="text-align: center; margin-top: 100px;">
+            <h1 style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">{{company_name}} {{application_type}}</h1>
+            <h2 style="font-size: 16px; font-weight: bold; margin-bottom: 60px;">Security Assessment Report</h2>
+            
+            <div style="margin: 60px 0;">
+                {{#each test_scope}}
+                <p style="margin: 10px 0;">{{this}}</p>
+                {{/each}}
             </div>
-            <div class="w-full ml-4 items-center">
-                <p class="text-xl text-gray-900 font-medium">{{report_title}}</p>
-            </div>
-        </div>
-        <div class="mt-16 leading-6 text-xs text-gray-700">
-            {{#each test_scope}}
-            <p>{{this}}</p>
-            {{/each}}
-        </div>
-        <div class="w-full border border-b border-grey-200 mt-6"></div>
-        <div>
-            <div class="flex my-4 text-gray-700 text-xs">
-                <div class="w-1-2">
-                    <h6 class="font-semibold text-gray-700">REPORT PUBLISH DATE</h6>
-                </div>
-                <div class="w-1-2">
-                    <p class="font-semibold text-gray-700">{{test_time}}</p>
-                </div>
+            
+            <div style="margin-top: 100px;">
+                <p style="font-weight: bold;">REPORT PUBLISH DATE</p>
+                <p style="margin-top: 10px;">{{test_time}}</p>
             </div>
         </div>
-        {{#if testers}}
-        <div class="w-full border border-b border-grey-200 mb-8"></div>
-        <div class="w-full text-xs text-gray-700">
-            <p class="font-semibold mb-3 text-gray-800">TEST PERFORMED BY</p>
-            {{#each testers}}
-            <div class="flex justify-between my-2">
-                <p class="font-medium text-blue-500">{{name}}</p>
-                <p class="border border-grey-600 rounded px-2">{{role}}</p>
-            </div>
-            {{/each}}
+        
+        <div style="position: absolute; bottom: 30px; width: 100%; text-align: center;">
+            <p style="font-size: 12px;">Page 1 of 14 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; © {{organization_name}} {{current_year}}</p>
         </div>
-        {{/if}}
         <div style="page-break-after: always;"></div>
     </div>
 
     <!-- Contents -->
     <div class="page">
-        <h1 class="text-lg font-medium text-gray-900">Contents</h1>
-        <div class="w-full border border-b border-grey-200 my-2"></div>
-        <div class="text-xs text-gray-700">
-            <div class="flex justify-between my-2">
-                <p>Executive Summary</p>
-                <p>3</p>
-            </div>
-            <div class="flex justify-between my-2">
-                <p>Security Checklist</p>
-                <p>4</p>
-            </div>
-            <div class="flex justify-between my-2">
-                <p>Scope of Work</p>
-                <p>7</p>
-            </div>
-            <div class="flex justify-between my-2">
-                <p>Methodology</p>
-                <p>9</p>
-            </div>
-            <div class="pl-4">
-                <div class="flex justify-between my-2">
-                    <p>Pre Engagement</p>
-                    <p>9</p>
-                </div>
-                <div class="flex justify-between my-2">
-                    <p>Penetration Testing</p>
-                    <p>9</p>
-                </div>
-                <div class="flex justify-between my-2">
-                    <p>Post Engagement | 30 days time after Reporting (Reverification)</p>
-                    <p>9</p>
-                </div>
-                <div class="flex justify-between my-2">
-                    <p>Severity Ratings</p>
-                    <p>10</p>
-                </div>
-                <div class="flex justify-between my-2">
-                    <p>Severity Rating Scale</p>
-                    <p>10</p>
-                </div>
-            </div>
-            <div class="flex justify-between my-2">
-                <p>Vulnerabilities Summary</p>
-                <p>11</p>
-            </div>
-            <div class="flex justify-between my-2">
-                <p>Appendix A - Vulnerability Summary & Recommendations</p>
-                <p>12</p>
-            </div>
+        <h1 style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">Contents</h1>
+        <div style="margin-top: 30px;">
+            <table style="width: 100%; font-size: 12px;">
+                <tr>
+                    <td>Executive Summary</td>
+                    <td style="text-align: right;">3</td>
+                </tr>
+                <tr>
+                    <td>Security Checklist</td>
+                    <td style="text-align: right;">4</td>
+                </tr>
+                <tr>
+                    <td>Scope of Work</td>
+                    <td style="text-align: right;">7</td>
+                </tr>
+                <tr>
+                    <td>Methodology</td>
+                    <td style="text-align: right;">9</td>
+                </tr>
+                <tr>
+                    <td style="padding-left: 20px;">Pre Engagement</td>
+                    <td style="text-align: right;">9</td>
+                </tr>
+                <tr>
+                    <td style="padding-left: 20px;">Penetration Testing</td>
+                    <td style="text-align: right;">9</td>
+                </tr>
+                <tr>
+                    <td style="padding-left: 20px;">Post Engagement | 30 days time after Reporting (Reverification)</td>
+                    <td style="text-align: right;">9</td>
+                </tr>
+                <tr>
+                    <td style="padding-left: 20px;">Severity Ratings</td>
+                    <td style="text-align: right;">10</td>
+                </tr>
+                <tr>
+                    <td style="padding-left: 20px;">Severity Rating Scale</td>
+                    <td style="text-align: right;">10</td>
+                </tr>
+                <tr>
+                    <td>Vulnerabilities Summary</td>
+                    <td style="text-align: right;">11</td>
+                </tr>
+                <tr>
+                    <td>Appendix A - Vulnerability Summary & Recommendations</td>
+                    <td style="text-align: right;">12</td>
+                </tr>
+            </table>
+        </div>
+        <div style="position: absolute; bottom: 30px; width: 100%; text-align: center;">
+            <p style="font-size: 12px;">Page 2 of 14 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; © {{organization_name}} {{current_year}}</p>
         </div>
         <div style="page-break-after: always;"></div>
     </div>
 
     <!-- Executive Summary Page -->
-    <div class="page text-gray-700 text-sm font-light">
-        <h1 class="text-lg font-medium text-gray-900">Executive Summary</h1>
-        <div class="w-full border border-b border-grey-200 my-2"></div>
-        <div class="pt-2 break-words">
-            <pre>{{executive_summary}}</pre>
+    <div class="page">
+        <h1 style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">Executive Summary</h1>
+        <div style="font-size: 12px; line-height: 1.6; text-align: justify;">
+            <p style="margin-bottom: 15px;">{{organization_name}} successfully conducted a comprehensive Vulnerability Assessment and Penetration Testing (VAPT) engagement for {{company_name}}'s {{application_type}}. The objective was to identify security gaps that could expose the organization to potential threats and ensure compliance with industry best practices.</p>
+            
+            <p style="margin-bottom: 15px;">The assessment methodology included both manual and automated testing approaches, providing an in-depth evaluation of the application's security posture. Testing was guided by the OWASP Top 10 Web Application Security Risks, covering critical areas such as authentication, access control, input validation, and session management.</p>
+            
+            <p style="margin-bottom: 15px;">{{executive_summary}}</p>
+            
+            <p style="margin-bottom: 15px;">Below is a graphical representation of the vulnerabilities discovered</p>
+        </div>
+        
+        <div style="position: absolute; bottom: 30px; width: 100%; text-align: center;">
+            <p style="font-size: 12px;">Page 3 of 14 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; © {{organization_name}} {{current_year}}</p>
         </div>
         <div style="page-break-after: always;"></div>
     </div>
 
     <!-- Security Checklist Page -->
-    <div class="page text-gray-700 text-sm font-light">
-        <h1 class="text-lg font-medium text-gray-900">Security Checklist</h1>
-        <div class="w-full border border-b border-grey-200 my-2"></div>
+    <div class="page">
+        <h1 style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">Security Checklist</h1>
+        <div style="margin-top: 30px; font-size: 10px;">
+            <!-- Identity Management Testing -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr>
+                        <th style="background-color: #f0f0f0; padding: 10px; border: 1px solid #ccc; text-align: left;" colspan="2">1. Identity Management Testing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="border: 1px solid #ccc; padding: 8px; width: 50%;">1.1 Test Role Definitions</td>
+                        <td style="border: 1px solid #ccc; padding: 8px;">1.2 Test User Registration Process</td>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #ccc; padding: 8px;">1.3 Test Account Provisioning Process</td>
+                        <td style="border: 1px solid #ccc; padding: 8px;">1.4 Testing for Account Enumeration and Guessable User Account</td>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #ccc; padding: 8px;">1.5 Testing for Weak or Unenforced Username Policy</td>
+                        <td style="border: 1px solid #ccc; padding: 8px;"></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Authentication Testing -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr>
+                        <th style="background-color: #f0f0f0; padding: 10px; border: 1px solid #ccc; text-align: left;" colspan="2">2. Authentication Testing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="border: 1px solid #ccc; padding: 8px; width: 50%;">2.1 Testing for Credentials Transported over an Encrypted Channel</td>
+                        <td style="border: 1px solid #ccc; padding: 8px;">2.2 Testing for Default Credentials</td>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #ccc; padding: 8px;">2.3 Testing for Weak Lock Out Mechanism</td>
+                        <td style="border: 1px solid #ccc; padding: 8px;">2.4 Testing for Bypassing Authentication Schema</td>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #ccc; padding: 8px;">2.5 Testing for Vulnerable Remember Password</td>
+                        <td style="border: 1px solid #ccc; padding: 8px;">2.6 Testing for Browser Cache Weaknesses</td>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #ccc; padding: 8px;">2.7 Testing for Weak Password Policy</td>
+                        <td style="border: 1px solid #ccc; padding: 8px;">2.8 Testing for Weak Security Question Answer</td>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #ccc; padding: 8px;">2.9 Testing for Weak Password Change or Reset Functionalities</td>
+                        <td style="border: 1px solid #ccc; padding: 8px;">2.10 Testing for Weaker Authentication in Alternative Channel</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Add more security categories as needed -->
+        </div>
         
-        <!-- OWASP Security Testing Categories -->
-        <table class="table-auto border mb-8 text-xs" style="border-radius:10px" width="100%">
-            <thead>
-                <tr>
-                    <th class="px-4 py-2 border text-left text-black" colspan="2" style="background-color: #dde7ea;">1. Identity Management Testing</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td class="border px-4 py-2" width="50%">1.1 Test Role Definitions</td>
-                    <td class="border px-4 py-2">1.2 Test User Registration Process</td>
-                </tr>
-                <tr>
-                    <td class="border px-4 py-2">1.3 Test Account Provisioning Process</td>
-                    <td class="border px-4 py-2">1.4 Testing for Account Enumeration and Guessable User Account</td>
-                </tr>
-                <tr>
-                    <td class="border px-4 py-2">1.5 Testing for Weak or Unenforced Username Policy</td>
-                    <td class="border px-4 py-2"></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <table class="table-auto border mb-8 text-xs" style="border-radius:10px" width="100%">
-            <thead>
-                <tr>
-                    <th class="px-4 py-2 border text-left text-black" colspan="2" style="background-color: #dde7ea;">2. Authentication Testing</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td class="border px-4 py-2" width="50%">2.1 Testing for Credentials Transported over an Encrypted Channel</td>
-                    <td class="border px-4 py-2">2.2 Testing for Default Credentials</td>
-                </tr>
-                <tr>
-                    <td class="border px-4 py-2">2.3 Testing for Weak Lock Out Mechanism</td>
-                    <td class="border px-4 py-2">2.4 Testing for Bypassing Authentication Schema</td>
-                </tr>
-                <tr>
-                    <td class="border px-4 py-2">2.5 Testing for Vulnerable Remember Password</td>
-                    <td class="border px-4 py-2">2.6 Testing for Browser Cache Weaknesses</td>
-                </tr>
-                <tr>
-                    <td class="border px-4 py-2">2.7 Testing for Weak Password Policy</td>
-                    <td class="border px-4 py-2">2.8 Testing for Weak Security Question Answer</td>
-                </tr>
-                <tr>
-                    <td class="border px-4 py-2">2.9 Testing for Weak Password Change or Reset Functionalities</td>
-                    <td class="border px-4 py-2">2.10 Testing for Weaker Authentication in Alternative Channel</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Additional security testing categories continue... -->
+        <div style="position: absolute; bottom: 30px; width: 100%; text-align: center;">
+            <p style="font-size: 12px;">Page 4 of 14 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; © {{organization_name}} {{current_year}}</p>
+        </div>
         <div style="page-break-after: always;"></div>
     </div>
 
     <!-- Scope of Work Page -->
-    <div class="page text-gray-700 text-sm font-light">
-        <h1 class="text-lg font-medium text-gray-900">Scope of Work</h1>
-        <div class="w-full border border-b border-grey-200 my-2"></div>
-        <h1 class="text-base font-medium text-gray-800 py-4">Coverage</h1>
-        <p>This penetration test was a manual assessment of the security of the app's functionality, business logic, and vulnerabilities such as those cataloged in the OWASP Top 10. The assessment also included a review of security controls and requirements listed in the OWASP Application Security Verification Standard (ASVS). The researchers rely on tools to facilitate their work, but the majority of the assessment involves manual analysis.</p>
-        <br />
-        <p>The following is a quick summary of the main tests performed on the {{coverage_asset_type}}:</p>
-        <ul>
-            <li class="my-1">Authenticated user testing for session and authentication issues</li>
-            <li class="my-1">Authorization testing for privilege escalation and access control issues</li>
-            <li class="my-1">Input injection tests (SQL injection, XSS, and others)</li>
-            <li class="my-1">Platform configuration and infrastructure tests</li>
-            <li class="my-1">OWASP Top 10 Assessment</li>
-        </ul>
-        <p>The team had access to authenticated users, enabling them to test security controls across roles and permissions.</p>
+    <div class="page">
+        <h1 style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">Scope of Work</h1>
         
-        <h1 class="text-base font-medium text-gray-800 py-4">Target description</h1>
-        <p class="mb-3">The following URLs/apps were in scope for this assessment:</p>
-        <ul>
-            {{#each test_scope}}
-            <li class="my-2">{{this}}</li>
-            {{/each}}
-        </ul>
+        <h2 style="font-size: 14px; font-weight: bold; margin-bottom: 15px; margin-top: 30px;">Coverage</h2>
+        <div style="font-size: 12px; line-height: 1.6; text-align: justify;">
+            <p style="margin-bottom: 15px;">This penetration test was a manual assessment of the security of the app's functionality, business logic, and vulnerabilities such as those cataloged in the OWASP Top 10. The assessment also included a review of security controls and requirements listed in the OWASP Application Security Verification Standard (ASVS). The researchers rely on tools to facilitate their work, but the majority of the assessment involves manual analysis.</p>
+            
+            <p style="margin-bottom: 10px;">The following is a quick summary of the main tests performed on the {{application_type}}:</p>
+            <ul style="margin-left: 20px; margin-bottom: 15px;">
+                <li style="margin-bottom: 5px;">Authenticated user testing for session and authentication issues</li>
+                <li style="margin-bottom: 5px;">Authorization testing for privilege escalation and access control issues</li>
+                <li style="margin-bottom: 5px;">Input injection tests (SQL injection, XSS, and others)</li>
+                <li style="margin-bottom: 5px;">Platform configuration and infrastructure tests</li>
+                <li style="margin-bottom: 5px;">OWASP Top 10 Assessment</li>
+            </ul>
+            <p style="margin-bottom: 15px;">The team had access to authenticated users, enabling them to test security controls across roles and permissions.</p>
+        </div>
         
-        <h1 class="text-base font-medium text-gray-800 py-4">Assumptions/Constraints</h1>
-        <div class="break-words">
-            <pre>{{assumptions}}</pre>
+        <div style="position: absolute; bottom: 30px; width: 100%; text-align: center;">
+            <p style="font-size: 12px;">Page 7 of 14 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; © {{organization_name}} {{current_year}}</p>
+        </div>
+        <div style="page-break-after: always;"></div>
+    </div>
+
+    <!-- Scope Target Description and Assumptions Page -->
+    <div class="page">
+        <h2 style="font-size: 14px; font-weight: bold; margin-bottom: 15px;">Target description</h2>
+        <div style="font-size: 12px; line-height: 1.6;">
+            <p style="margin-bottom: 10px;">The following URLs/apps were in scope for this assessment:</p>
+            <ul style="margin-left: 20px; margin-bottom: 20px;">
+                {{#each test_scope}}
+                <li style="margin-bottom: 5px;">{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+        
+        <h2 style="font-size: 14px; font-weight: bold; margin-bottom: 15px;">Assumptions/Constraints</h2>
+        <div style="font-size: 12px; line-height: 1.6;">
+            <p style="margin-bottom: 15px;">1. The issues identified and proposed action plans in this report are based on our testing performed within the limited timespan and limited access to the servers. We made specific efforts to verify the accuracy and authenticity of the information gathered only in those cases where it was deemed necessary.</p>
+            
+            <p style="margin-bottom: 15px;">2. While precautions have been taken in the preparation of this document, {{organization_name}} the publisher, and the author(s) assume no responsibility for errors, omissions, or for damages resulting from the use of the information contained herein. Use of {{organization_name}}'s services does not guarantee the security of a system, or that computer intrusions will not occur.</p>
+            
+            <p style="margin-bottom: 15px;">3. Any configuration changes or software/hardware updates made on hosts/machines or on the application covered in this test after the date mentioned herein may impact the security posture either positively or negatively and hence invalidates the claims & observations in this report. Whenever there is a change in the architecture, we recommend that you conduct a vulnerability assessment and penetration test to ensure that your security posture is compliant with your security policies.</p>
+        </div>
+        
+        <div style="position: absolute; bottom: 30px; width: 100%; text-align: center;">
+            <p style="font-size: 12px;">Page 8 of 14 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; © {{organization_name}} {{current_year}}</p>
         </div>
         <div style="page-break-after: always;"></div>
     </div>
@@ -571,25 +586,46 @@ const TEMPLATE_VARIABLES = [
     example: "Vulnerability Assessment and Penetration Testing Report"
   },
   {
-    name: "company_logo",
-    description: "URL or path to the company logo image",
+    name: "company_name",
+    description: "Name of the client company",
     type: "string",
-    required: false,
-    example: "https://example.com/logo.png"
+    required: true,
+    example: "ACME Corporation"
+  },
+  {
+    name: "application_type",
+    description: "Type of application being tested",
+    type: "string",
+    required: true,
+    example: "Web Application"
+  },
+  {
+    name: "organization_name",
+    description: "Name of the testing organization",
+    type: "string",
+    required: true,
+    example: "AppSecure"
+  },
+  {
+    name: "current_year",
+    description: "Current year for copyright notice",
+    type: "string",
+    required: true,
+    example: "2024"
   },
   {
     name: "test_scope",
     description: "Array of URLs/applications that were tested",
     type: "array",
     required: true,
-    example: ["https://app.example.com", "https://api.example.com"]
+    example: ["https://www.acme.com"]
   },
   {
     name: "test_time",
     description: "Date when the test was performed",
     type: "string",
     required: true,
-    example: "March 15, 2024"
+    example: "Tue May 23 2024 11:15:40 GMT+0000 (UTC)"
   },
   {
     name: "testers",
