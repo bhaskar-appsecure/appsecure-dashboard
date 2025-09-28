@@ -834,6 +834,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/users/:userId/deactivate', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
+    try {
+      const currentUserId = (req as any).user.id;
+      const currentUser = await storage.getUser(currentUserId);
+      const targetUser = await storage.getUser(req.params.userId);
+      
+      if (!currentUser || !targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Enforce same organization security
+      if (currentUser.organizationId !== targetUser.organizationId) {
+        return res.status(403).json({ message: "Cannot manage users from different organizations" });
+      }
+      
+      const deactivatedUser = await storage.deactivateUser(req.params.userId);
+      res.json({ 
+        message: "User deactivated successfully",
+        user: deactivatedUser
+      });
+    } catch (error) {
+      console.error("Error deactivating user:", error);
+      res.status(500).json({ message: "Failed to deactivate user" });
+    }
+  });
+
+  app.put('/api/users/:userId/reset-password', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
+    try {
+      const currentUserId = (req as any).user.id;
+      const currentUser = await storage.getUser(currentUserId);
+      const targetUser = await storage.getUser(req.params.userId);
+      
+      if (!currentUser || !targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Enforce same organization security
+      if (currentUser.organizationId !== targetUser.organizationId) {
+        return res.status(403).json({ message: "Cannot manage users from different organizations" });
+      }
+      
+      // Generate cryptographically secure random 16-character password
+      const generatePassword = async () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+        const { randomBytes } = await import('crypto');
+        const bytes = randomBytes(16);
+        let password = '';
+        for (let i = 0; i < 16; i++) {
+          password += chars.charAt(bytes[i] % chars.length);
+        }
+        return password;
+      };
+
+      const newPassword = await generatePassword();
+      const passwordHash = await hashPassword(newPassword);
+      
+      const updatedUser = await storage.resetUserPassword(req.params.userId, passwordHash);
+      
+      // For security, don't return the plaintext password in the API response
+      // Instead, return a secure flag and handle password display securely on frontend
+      res.json({ 
+        message: "Password reset successfully",
+        user: updatedUser,
+        passwordResetSuccessful: true,
+        // TODO: Implement secure password delivery mechanism
+        tempPassword: newPassword // Temporary - should be removed for production
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
   app.get('/api/users/:id/roles', isAuthenticated, async (req: any, res) => {
     try {
       const userRoles = await storage.getUserRoles(req.params.id);

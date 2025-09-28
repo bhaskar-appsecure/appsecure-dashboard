@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { ProjectCard } from "@/components/ProjectCard";
 import { FindingCard } from "@/components/FindingCard";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import {
   Plus,
   AlertTriangle,
@@ -15,78 +17,57 @@ import {
   Users,
 } from "lucide-react";
 
-// TODO: Remove mock data
-const mockProjects = [
-  {
-    id: 'p-001',
-    name: 'E-commerce Platform Assessment',
-    customerName: 'TechCorp Industries',
-    description: 'Comprehensive security assessment of customer-facing e-commerce platform.',
-    status: 'in_progress' as const,
-    startDate: new Date('2024-01-15'),
-    endDate: new Date('2024-02-28'),
-    findingStats: { total: 23, critical: 2, high: 5, medium: 8, low: 6, informational: 2 },
-    teamSize: 4,
-    progress: 65,
-  },
-  {
-    id: 'p-002',
-    name: 'Mobile Banking App Review',
-    customerName: 'SecureBank Corp',
-    description: 'Security review of mobile banking application and backend APIs.',
-    status: 'planned' as const,
-    startDate: new Date('2024-02-01'),
-    endDate: new Date('2024-03-15'),
-    findingStats: { total: 8, critical: 1, high: 2, medium: 3, low: 2, informational: 0 },
-    teamSize: 3,
-    progress: 15,
-  },
-];
+// Interfaces for real data
+interface Project {
+  id: string;
+  name: string;
+  customerName: string;
+  description: string;
+  status: string;
+  startDate: string;
+  expectedEndDate: string;
+  actualEndDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
-const mockFindings = [
-  {
-    id: 'f-001',
-    title: 'SQL Injection in User Authentication',
-    severity: 'critical' as const,
-    status: 'submitted',
-    description: 'Critical SQL injection vulnerability found in login endpoint allowing authentication bypass.',
-    cvssScore: 9.8,
-    createdBy: { id: 'u-001', name: 'Sarah Chen' },
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    commentsCount: 3,
-    evidenceCount: 5,
-    affectedAssets: ['api.example.com', 'app.example.com'],
-  },
-  {
-    id: 'f-002',
-    title: 'Cross-Site Scripting in Dashboard',
-    severity: 'high' as const,
-    status: 'company_review',
-    description: 'Reflected XSS vulnerability in user dashboard allowing session hijacking.',
-    cvssScore: 7.2,
-    createdBy: { id: 'u-002', name: 'Marcus Rodriguez' },
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    commentsCount: 1,
-    evidenceCount: 3,
-    affectedAssets: ['dashboard.example.com'],
-  },
-];
+interface Finding {
+  id: string;
+  title: string;
+  severity: string;
+  status: string;
+  description: string;
+  cvssScore?: number;
+  createdAt: string;
+  updatedAt: string;
+  projectId: string;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
   
-  // TODO: Remove mock functionality
   const userRole = user?.role || 'researcher';
   const isResearcher = userRole === 'researcher';
   const isCustomer = userRole === 'project_user' || userRole === 'customer_admin';
 
+  // Fetch real projects data
+  const { data: projects = [] } = useQuery({
+    queryKey: ['/api/projects'],
+    enabled: !!user
+  });
+
+  // Fetch real findings data
+  const { data: findings = [] } = useQuery({
+    queryKey: ['/api/findings'],
+    enabled: !!user
+  });
+
+  // Calculate real stats from API data
   const stats = {
-    activeProjects: 8,
-    totalFindings: 156,
-    criticalFindings: 12,
-    resolvedFindings: 89,
+    activeProjects: projects.filter((p: Project) => p.status === 'in_progress').length,
+    totalFindings: findings.length,
+    criticalFindings: findings.filter((f: Finding) => f.severity === 'critical').length,
+    resolvedFindings: findings.filter((f: Finding) => f.status === 'resolved' || f.status === 'closed').length,
   };
 
   return (
@@ -165,7 +146,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats.resolvedFindings}</div>
             <p className="text-xs text-muted-foreground">
-              {Math.round((stats.resolvedFindings / stats.totalFindings) * 100)}% completion rate
+              {stats.totalFindings > 0 ? Math.round((stats.resolvedFindings / stats.totalFindings) * 100) : 0}% completion rate
             </p>
           </CardContent>
         </Card>
@@ -176,19 +157,33 @@ export default function Dashboard() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Recent Projects</h2>
-            <Button variant="ghost" size="sm">
-              View All
-            </Button>
+            <Link href="/projects">
+              <Button variant="ghost" size="sm">
+                View All
+              </Button>
+            </Link>
           </div>
           <div className="space-y-4">
-            {mockProjects.map((project) => (
+            {projects.slice(0, 3).map((project: Project) => (
               <ProjectCard
                 key={project.id}
-                project={project}
-                onOpen={(id) => console.log('Open project:', id)}
-                onViewFindings={(id) => console.log('View findings:', id)}
+                project={{
+                  ...project,
+                  startDate: new Date(project.startDate),
+                  endDate: project.expectedEndDate ? new Date(project.expectedEndDate) : new Date(),
+                  findingStats: { total: 0, critical: 0, high: 0, medium: 0, low: 0, informational: 0 },
+                  teamSize: 1,
+                  progress: project.status === 'completed' ? 100 : project.status === 'in_progress' ? 50 : 0,
+                }}
+                onOpen={(id) => window.location.href = `/projects/${id}`}
+                onViewFindings={(id) => window.location.href = `/projects/${id}/findings`}
               />
             ))}
+            {projects.length === 0 && (
+              <div className="text-center text-muted-foreground py-8">
+                No projects yet. Create your first project to get started.
+              </div>
+            )}
           </div>
         </div>
 
@@ -198,20 +193,35 @@ export default function Dashboard() {
             <h2 className="text-xl font-semibold">
               {isResearcher ? 'My Recent Findings' : 'Recent Findings'}
             </h2>
-            <Button variant="ghost" size="sm">
-              View All
-            </Button>
+            <Link href="/findings">
+              <Button variant="ghost" size="sm">
+                View All
+              </Button>
+            </Link>
           </div>
           <div className="space-y-4">
-            {mockFindings.map((finding) => (
+            {findings.slice(0, 3).map((finding: Finding) => (
               <FindingCard
                 key={finding.id}
-                finding={finding}
-                onView={(id) => console.log('View finding:', id)}
-                onEdit={(id) => console.log('Edit finding:', id)}
+                finding={{
+                  ...finding,
+                  createdBy: { id: 'user', name: user?.firstName || 'User' },
+                  createdAt: new Date(finding.createdAt),
+                  updatedAt: new Date(finding.updatedAt),
+                  commentsCount: 0,
+                  evidenceCount: 0,
+                  affectedAssets: [],
+                }}
+                onView={(id) => window.location.href = `/findings/${id}`}
+                onEdit={(id) => window.location.href = `/findings/${id}/edit`}
                 onStatusChange={(id, status) => console.log('Status change:', id, status)}
               />
             ))}
+            {findings.length === 0 && (
+              <div className="text-center text-muted-foreground py-8">
+                No findings yet. Start security testing to create findings.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -253,10 +263,6 @@ export default function Dashboard() {
                 </Button>
               </>
             )}
-            <Button variant="outline">
-              <Users className="h-4 w-4 mr-1" />
-              Invite Team Member
-            </Button>
             <Button variant="outline">
               View Analytics
             </Button>

@@ -41,15 +41,6 @@ interface UserRole {
   role: Role;
 }
 
-interface UserInvitation {
-  id: string;
-  email: string;
-  organizationId: string;
-  invitedBy: string;
-  expiresAt: string;
-  status: "pending" | "accepted" | "expired";
-  createdAt: string;
-}
 
 const createUserSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -92,10 +83,6 @@ export default function UserManagement() {
     queryKey: ['/api/user-roles'],
   });
 
-  // Fetch pending invitations
-  const { data: invitations = [] } = useQuery<UserInvitation[]>({
-    queryKey: ['/api/invitations'],
-  });
 
   // Invite user mutation
   const createUserMutation = useMutation({
@@ -112,7 +99,6 @@ export default function UserManagement() {
         setCreatedUserPassword(data.password);
       }
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/invitations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/user-roles'] });
       setIsCreateUserDialogOpen(false);
       form.reset();
@@ -190,6 +176,28 @@ export default function UserManagement() {
     },
   });
 
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest('PUT', `/api/users/${userId}/reset-password`);
+      return await response.json();
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Password Reset",
+        description: `Password reset successfully. Temporary password: ${data.tempPassword}. Please share this securely with the user.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onCreateUserSubmit = (data: CreateUserForm) => {
     createUserMutation.mutate(data);
   };
@@ -204,15 +212,6 @@ export default function UserManagement() {
 
   const handleRemoveRole = (userId: string, roleId: string) => {
     removeRoleMutation.mutate({ userId, roleId });
-  };
-
-  const getInvitationStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      pending: "default",
-      accepted: "secondary",
-      expired: "destructive",
-    };
-    return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
   };
 
   return (
@@ -381,20 +380,6 @@ export default function UserManagement() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Invitations</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-pending-invitations">
-              {invitations.filter(inv => inv.status === 'pending').length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting user acceptance
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Available Roles</CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -503,9 +488,19 @@ export default function UserManagement() {
                         <Button 
                           variant="outline" 
                           size="sm"
+                          onClick={() => resetPasswordMutation.mutate(user.id)}
+                          data-testid={`button-reset-password-${user.id}`}
+                          title="Reset Password"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
                           disabled={!user.isActive}
                           onClick={() => deactivateUserMutation.mutate(user.id)}
                           data-testid={`button-deactivate-${user.id}`}
+                          title="Deactivate User"
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -519,34 +514,6 @@ export default function UserManagement() {
         </CardContent>
       </Card>
 
-      {/* Pending Invitations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pending Invitations</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Invited By</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Expires</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invitations.map((invitation) => (
-                <TableRow key={invitation.id} data-testid={`row-invitation-${invitation.id}`}>
-                  <TableCell>{invitation.email}</TableCell>
-                  <TableCell>{invitation.invitedBy}</TableCell>
-                  <TableCell>{getInvitationStatusBadge(invitation.status)}</TableCell>
-                  <TableCell>{new Date(invitation.expiresAt).toLocaleDateString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
   );
 }

@@ -84,11 +84,6 @@ const adminSectionItems = {
     url: "/roles",
     icon: Shield,
   },
-  invite_users: {
-    title: "Invite Users",
-    url: "/users#invite",
-    icon: UserPlus,
-  },
 };
 
 export function AppSidebar() {
@@ -139,9 +134,6 @@ export function AppSidebar() {
       adminItems.push(adminSectionItems.manage_roles);
     }
 
-    if (isSuperAdmin || permissions.has('invite_users')) {
-      adminItems.push(adminSectionItems.invite_users);
-    }
 
     return adminItems;
   };
@@ -187,12 +179,6 @@ export function AppSidebar() {
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
-                        {item.title === "Findings" && (
-                          <Badge variant="secondary" className="ml-auto h-5 text-xs">
-                            {/* TODO: Remove mock functionality */}
-                            12
-                          </Badge>
-                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

@@ -55,6 +55,8 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  deactivateUser(id: string): Promise<User>;
+  resetUserPassword(id: string, newPasswordHash: string): Promise<User>;
   
   // Organization operations
   createOrganization(org: InsertOrganization): Promise<Organization>;
@@ -177,6 +179,30 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async deactivateUser(id: string): Promise<User> {
+    const [deactivatedUser] = await db
+      .update(users)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return deactivatedUser;
+  }
+
+  async resetUserPassword(id: string, newPasswordHash: string): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        passwordHash: newPasswordHash,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
   }
 
   // Organization operations
