@@ -94,6 +94,8 @@ export const reportTemplateTypeEnum = pgEnum("report_template_type", [
   "network",
   "cloud",
   "api",
+  "executive-summary",
+  "html",
 ]);
 
 // Core entities
@@ -268,8 +270,7 @@ export const reportExports = pgTable("report_exports", {
     .references(() => projects.id)
     .notNull(),
   templateId: varchar("template_id")
-    .references(() => reportTemplates.id)
-    .notNull(),
+    .references(() => reportTemplates.id),
   reportName: text("report_name").notNull(),
   reportScope: text("report_scope"),
   templateType: reportTemplateTypeEnum("template_type").notNull(),

@@ -177,13 +177,22 @@ const mockProjectDetail: ProjectDetail = {
 function ExportReportDialog({ projectId, projectName }: { projectId: string; projectName: string }) {
   const [reportName, setReportName] = useState(`${projectName} - Security Assessment Report`);
   const [reportScope, setReportScope] = useState("");
-  const [templateType, setTemplateType] = useState<string>("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [executiveSummary, setExecutiveSummary] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
+  // Fetch available templates
+  const { data: templates, isLoading: isLoadingTemplates } = useQuery({
+    queryKey: ['/api/templates'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/templates');
+      return (await response.json()) as any[];
+    }
+  });
+
   const handleExportReport = async () => {
-    if (!templateType) {
+    if (!selectedTemplateId) {
       toast({
         title: "Template Required",
         description: "Please select a report template before exporting.",
@@ -192,18 +201,25 @@ function ExportReportDialog({ projectId, projectName }: { projectId: string; pro
       return;
     }
 
+    const selectedTemplate = templates?.find((t: any) => t.id === selectedTemplateId);
+    
+    if (!selectedTemplate) {
+      toast({
+        title: "Template Error",
+        description: "Selected template not found. Please select a valid template.",
+        variant: "destructive"
+      });
+      return;
+    }
     setIsExporting(true);
     try {
-      await apiRequest({
-        method: 'POST',
-        url: `/api/projects/${projectId}/export`,
-        data: {
-          reportName,
-          reportScope,
-          templateType,
-          executiveSummary,
-          includeExecutiveSummary: !!executiveSummary
-        }
+      await apiRequest('POST', `/api/projects/${projectId}/export`, {
+        reportName,
+        reportScope,
+        templateId: selectedTemplateId,
+        templateType: selectedTemplate?.type || 'html',
+        executiveSummary,
+        includeExecutiveSummary: !!executiveSummary
       });
 
       // Invalidate exports cache to refresh the list
@@ -237,15 +253,11 @@ function ExportReportDialog({ projectId, projectName }: { projectId: string; pro
 
     setIsExporting(true);
     try {
-      await apiRequest({
-        method: 'POST',
-        url: `/api/projects/${projectId}/export`,
-        data: {
-          reportName: `${reportName} - Executive Summary`,
-          templateType: 'executive-summary',
-          executiveSummary,
-          includeExecutiveSummary: true
-        }
+      await apiRequest('POST', `/api/projects/${projectId}/export`, {
+        reportName: `${reportName} - Executive Summary`,
+        templateType: 'executive-summary',
+        executiveSummary,
+        includeExecutiveSummary: true
       });
 
       // Invalidate exports cache to refresh the list
@@ -312,16 +324,27 @@ function ExportReportDialog({ projectId, projectName }: { projectId: string; pro
           {/* Report Template */}
           <div className="space-y-2">
             <Label>Report Template</Label>
-            <Select value={templateType} onValueChange={setTemplateType}>
+            <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
               <SelectTrigger data-testid="select-report-template">
-                <SelectValue placeholder="Select report template type" />
+                <SelectValue placeholder={isLoadingTemplates ? "Loading templates..." : "Select report template"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="web">Web Application Security Report</SelectItem>
-                <SelectItem value="mobile">Mobile Application Security Report</SelectItem>
-                <SelectItem value="network">Network Penetration Test Report</SelectItem>
-                <SelectItem value="cloud">Cloud Security Assessment Report</SelectItem>
-                <SelectItem value="api">API Security Assessment Report</SelectItem>
+                {templates && templates.length > 0 ? (
+                  templates.map((template: any) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{template.name}</span>
+                        {template.description && (
+                          <span className="text-xs text-muted-foreground">{template.description}</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    {isLoadingTemplates ? "Loading templates..." : "No templates available"}
+                  </div>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -340,7 +363,7 @@ function ExportReportDialog({ projectId, projectName }: { projectId: string; pro
           <div className="flex gap-3 pt-4">
             <Button 
               onClick={handleExportReport}
-              disabled={isExporting || !templateType}
+              disabled={isExporting || !selectedTemplateId}
               className="flex-1"
               data-testid="button-export-full-report"
             >

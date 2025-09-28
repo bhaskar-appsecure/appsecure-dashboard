@@ -557,24 +557,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects/:projectId/export', isAuthenticated, async (req: any, res) => {
+  app.post('/api/projects/:projectId/export', isAuthenticated, hasPermission('export_reports'), async (req: any, res) => {
     try {
       const userId = (req as any).user.id;
+      const { templateId, templateType, reportName, reportScope, executiveSummary } = req.body;
       
-      // Verify user has access to this project first
+      // Verify user has access to this project
+      const hasAccess = await storage.hasProjectAccess(userId, req.params.projectId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied to project" });
+      }
+
       const project = await storage.getProject(req.params.projectId);
-      if (!project || project.createdBy !== userId) {
-        return res.status(403).json({ message: "Access denied" });
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // Validate templateId if provided
+      if (templateId) {
+        const template = await storage.getTemplate(templateId);
+        if (!template) {
+          return res.status(400).json({ message: "Invalid template ID" });
+        }
+
+        // Verify user has access to this template (same organization)
+        const user = await storage.getUser(userId);
+        if (template.organizationId !== user?.organizationId) {
+          return res.status(403).json({ message: "Access denied to template" });
+        }
       }
       
       const exportData = {
-        ...req.body,
         projectId: req.params.projectId,
+        templateId: templateId || null,
+        reportName: reportName || `${project.name} - Security Assessment Report`,
+        reportScope: reportScope || '',
+        templateType: templateType || 'html',
+        executiveSummary: sanitizeHtml(executiveSummary || ''),
         exportedBy: userId,
         format: 'pdf', // Default format
-        filename: `${req.body.reportName || 'report'}.pdf`,
+        filename: `${reportName || 'report'}.pdf`,
         filePath: `/exports/${req.params.projectId}/${Date.now()}.pdf`,
-        checksum: 'pending' // Will be updated after file generation
+        checksum: 'pending', // Will be updated after file generation
+        metadata: {
+          includeExecutiveSummary: !!executiveSummary,
+          exportTimestamp: new Date().toISOString()
+        }
       };
       
       // Validate request data
