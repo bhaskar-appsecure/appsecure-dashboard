@@ -21,6 +21,7 @@ import { fromZodError } from "zod-validation-error";
 import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 import { createDefaultVAPTTemplate } from '../scripts/create-default-template';
+import puppeteer from 'puppeteer';
 
 // Initialize DOMPurify with JSDOM
 const window = new JSDOM('').window;
@@ -538,6 +539,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PDF Generation function
+  async function generateReportPDF(projectId: string, templateId: string | null, reportOptions: {
+    reportName: string;
+    reportScope: string;
+    executiveSummary: string;
+  }, userId: string): Promise<Buffer> {
+    try {
+      // Get project data
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        throw new Error('Project not found');
+      }
+
+      // Get findings for this project
+      const findings = await storage.getFindingsByProject(projectId);
+
+      // Get template (use default if no templateId provided)
+      let template;
+      if (templateId) {
+        template = await storage.getTemplate(templateId);
+        if (!template) {
+          throw new Error('Template not found');
+        }
+      } else {
+        // Get user info for creating default template
+        const user = await storage.getUser(userId); // Use authenticated user's ID
+        if (!user?.organizationId) {
+          throw new Error('User must belong to an organization to create templates');
+        }
+        
+        // Create default template if none exists
+        try {
+          template = await createDefaultVAPTTemplate(user.organizationId, userId);
+        } catch (error) {
+          console.error('Error creating default template:', error);
+          throw new Error('Failed to get report template');
+        }
+      }
+
+      // Prepare template variables
+      const templateData = {
+        report_title: reportOptions.reportName || `${project.name} - Security Assessment Report`,
+        company_name: project.name,
+        application_type: "Web Application",
+        organization_name: "Security Assessment Team", 
+        current_year: new Date().getFullYear().toString(),
+        test_scope: [reportOptions.reportScope || project.name],
+        test_time: new Date().toISOString(),
+        testers: [],
+        executive_summary: sanitizeHtml(reportOptions.executiveSummary) || "Executive summary will be provided here.",
+        coverage_asset_type: "web application",
+        assumptions: "Testing was performed with provided access and credentials.",
+        findings: findings.map(finding => ({
+          title: finding.title,
+          description: sanitizeHtml(finding.descriptionHtml) || '',
+          severity: finding.severity,
+          type: finding.category || 'General',
+          cvssScore: finding.cvssScore?.toString() || '0.0',
+          cvssVector: finding.cvssVector || '',
+          stepsToReproduce: sanitizeHtml(finding.stepsHtml) || '',
+          impact: sanitizeHtml(finding.impactHtml) || '',
+          httpRequest: finding.technicalDetails || '',
+          recommendation: sanitizeHtml(finding.fixHtml) || '',
+          screenshots: [],
+          status: finding.status
+        }))
+      };
+
+      // Replace template variables in HTML
+      let populatedHtml = template.content;
+      
+      // Replace simple string variables
+      populatedHtml = populatedHtml.replace(/{{report_title}}/g, templateData.report_title);
+      populatedHtml = populatedHtml.replace(/{{company_name}}/g, templateData.company_name);
+      populatedHtml = populatedHtml.replace(/{{application_type}}/g, templateData.application_type);
+      populatedHtml = populatedHtml.replace(/{{organization_name}}/g, templateData.organization_name);
+      populatedHtml = populatedHtml.replace(/{{current_year}}/g, templateData.current_year);
+      populatedHtml = populatedHtml.replace(/{{test_time}}/g, new Date(templateData.test_time).toDateString());
+      populatedHtml = populatedHtml.replace(/{{executive_summary}}/g, templateData.executive_summary);
+      populatedHtml = populatedHtml.replace(/{{coverage_asset_type}}/g, templateData.coverage_asset_type);
+      populatedHtml = populatedHtml.replace(/{{assumptions}}/g, templateData.assumptions);
+
+      // Replace test scope (array)
+      const testScopeHtml = templateData.test_scope.map(scope => `<li>${scope}</li>`).join('');
+      populatedHtml = populatedHtml.replace(/{{#test_scope}}.*?{{\/test_scope}}/gs, `<ul>${testScopeHtml}</ul>`);
+
+      // Replace findings (array) - basic replacement for now
+      const findingsHtml = templateData.findings.map(finding => `
+        <div style="page-break-inside: avoid; margin-bottom: 30px; border: 1px solid #ddd; padding: 20px;">
+          <h3 style="color: ${finding.severity === 'critical' ? '#CC0500' : finding.severity === 'high' ? '#DF3D03' : finding.severity === 'medium' ? '#F9A009' : '#666'};">
+            ${finding.title}
+          </h3>
+          <div><strong>Severity:</strong> ${finding.severity.toUpperCase()}</div>
+          <div><strong>CVSS Score:</strong> ${finding.cvssScore}</div>
+          <div style="margin: 10px 0;"><strong>Description:</strong><br/>${finding.description}</div>
+          <div style="margin: 10px 0;"><strong>Impact:</strong><br/>${finding.impact}</div>
+          <div style="margin: 10px 0;"><strong>Steps to Reproduce:</strong><br/>${finding.stepsToReproduce}</div>
+          <div style="margin: 10px 0;"><strong>Recommendation:</strong><br/>${finding.recommendation}</div>
+        </div>
+      `).join('');
+      
+      populatedHtml = populatedHtml.replace(/{{#findings}}.*?{{\/findings}}/gs, findingsHtml);
+
+      // Launch puppeteer and generate PDF
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      });
+
+      const page = await browser.newPage();
+      
+      // Disable JavaScript for security
+      await page.setJavaScriptEnabled(false);
+      
+      // Block external requests for security (only allow data: URLs)
+      await page.setRequestInterception(true);
+      page.on('request', (request) => {
+        const url = request.url();
+        if (url.startsWith('data:')) {
+          request.continue();
+        } else {
+          request.abort();
+        }
+      });
+      
+      // Set content with proper wait conditions
+      await page.setContent(populatedHtml, { waitUntil: 'networkidle0' });
+      
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20mm',
+          right: '15mm',
+          bottom: '20mm',
+          left: '15mm'
+        }
+      });
+
+      await browser.close();
+      return pdfBuffer;
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      throw error;
+    }
+  }
+
   // Report export routes
   app.get('/api/projects/:projectId/exports', isAuthenticated, async (req: any, res) => {
     try {
@@ -615,8 +764,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const exportRecord = await storage.createReportExport(result.data);
-      res.status(201).json(exportRecord);
+      // Generate PDF immediately
+      const pdfBuffer = await generateReportPDF(req.params.projectId, templateId, {
+        reportName,
+        reportScope,
+        executiveSummary
+      }, userId);
+      
+      // Set headers for file download
+      const filename = `${reportName || 'report'}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      
+      // Send the PDF buffer
+      res.send(pdfBuffer);
     } catch (error) {
       console.error("Error creating report export:", error);
       res.status(500).json({ message: "Failed to create report export" });
