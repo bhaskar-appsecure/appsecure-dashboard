@@ -100,7 +100,10 @@ export interface IStorage {
   
   // Template operations
   createTemplate(template: InsertTemplate): Promise<ReportTemplate>;
+  getTemplate(id: string): Promise<ReportTemplate | undefined>;
   getTemplatesByOrganization(orgId: string): Promise<ReportTemplate[]>;
+  updateTemplate(id: string, updates: Partial<InsertTemplate>): Promise<ReportTemplate>;
+  deleteTemplate(id: string): Promise<void>;
   
   // Project membership check
   hasProjectAccess(userId: string, projectId: string): Promise<boolean>;
@@ -508,6 +511,30 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(reportTemplates)
       .where(eq(reportTemplates.organizationId, orgId));
+  }
+
+  async getTemplate(id: string): Promise<ReportTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(reportTemplates)
+      .where(eq(reportTemplates.id, id))
+      .limit(1);
+    return template;
+  }
+
+  async updateTemplate(id: string, updates: Partial<InsertTemplate>): Promise<ReportTemplate> {
+    const [template] = await db
+      .update(reportTemplates)
+      .set(updates)
+      .where(eq(reportTemplates.id, id))
+      .returning();
+    return template;
+  }
+
+  async deleteTemplate(id: string): Promise<void> {
+    await db
+      .delete(reportTemplates)
+      .where(eq(reportTemplates.id, id));
   }
 
   // Project membership check

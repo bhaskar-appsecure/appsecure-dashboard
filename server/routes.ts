@@ -14,7 +14,8 @@ import {
   insertRolePermissionSchema,
   insertUserRoleSchema,
   insertUserInvitationSchema,
-  insertUserSchema
+  insertUserSchema,
+  insertTemplateSchema
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import DOMPurify from 'dompurify';
@@ -936,6 +937,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user roles:", error);
       res.status(500).json({ message: "Failed to fetch user roles" });
+    }
+  });
+
+  // Template management routes
+  app.get('/api/templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+      
+      const templates = await storage.getTemplatesByOrganization(user.organizationId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching templates:", error);
+      res.status(500).json({ message: "Failed to fetch templates" });
+    }
+  });
+
+  app.post('/api/templates', isAuthenticated, hasPermission('export_reports'), async (req: any, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      const parseResult = insertTemplateSchema.safeParse({
+        ...req.body,
+        organizationId: user.organizationId,
+        createdBy: userId
+      });
+
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid template data",
+          error: fromZodError(parseResult.error).toString()
+        });
+      }
+
+      // Sanitize template content to prevent XSS
+      const sanitizedData = {
+        ...parseResult.data,
+        content: sanitizeHtml(parseResult.data.content)
+      };
+
+      const template = await storage.createTemplate(sanitizedData);
+      res.json(template);
+    } catch (error) {
+      console.error("Error creating template:", error);
+      res.status(500).json({ message: "Failed to create template" });
+    }
+  });
+
+  app.get('/api/templates/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      const template = await storage.getTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
+      // Check if template belongs to user's organization
+      if (template.organizationId !== user.organizationId) {
+        return res.status(403).json({ message: "Cannot access templates from other organizations" });
+      }
+
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching template:", error);
+      res.status(500).json({ message: "Failed to fetch template" });
+    }
+  });
+
+  app.put('/api/templates/:id', isAuthenticated, hasPermission('export_reports'), async (req: any, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      // Verify template belongs to user's organization
+      const existingTemplate = await storage.getTemplate(req.params.id);
+      if (!existingTemplate) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      if (existingTemplate.organizationId !== user.organizationId) {
+        return res.status(403).json({ message: "Cannot modify templates from other organizations" });
+      }
+
+      // Validate the update data - only allow specific fields to be updated
+      const updateSchema = insertTemplateSchema.pick({ 
+        name: true, 
+        description: true, 
+        content: true, 
+        type: true, 
+        isDefault: true, 
+        version: true 
+      }).partial();
+      const parseResult = updateSchema.safeParse(req.body);
+      
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid template update data",
+          error: fromZodError(parseResult.error).toString()
+        });
+      }
+
+      // Sanitize template content to prevent XSS if content is being updated
+      const sanitizedData = {
+        ...parseResult.data,
+        ...(parseResult.data.content && { content: sanitizeHtml(parseResult.data.content) })
+      };
+
+      const template = await storage.updateTemplate(req.params.id, sanitizedData);
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating template:", error);
+      res.status(500).json({ message: "Failed to update template" });
+    }
+  });
+
+  app.delete('/api/templates/:id', isAuthenticated, hasPermission('export_reports'), async (req: any, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const user = await storage.getUser(userId);
+      if (!user?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      // Verify template belongs to user's organization
+      const existingTemplate = await storage.getTemplate(req.params.id);
+      if (!existingTemplate) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      if (existingTemplate.organizationId !== user.organizationId) {
+        return res.status(403).json({ message: "Cannot delete templates from other organizations" });
+      }
+
+      await storage.deleteTemplate(req.params.id);
+      res.json({ message: "Template deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting template:", error);
+      res.status(500).json({ message: "Failed to delete template" });
     }
   });
 
