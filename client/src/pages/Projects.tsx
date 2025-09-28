@@ -629,7 +629,8 @@ export default function Projects() {
         },
         progress: 0 // Default progress
       }));
-    }
+    },
+    initialData: [], // Provide empty array as initial data to prevent undefined access
   });
 
   const projectsData = projects || mockProjects;
@@ -709,7 +710,7 @@ export default function Projects() {
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold">
-              {projectsData.reduce((sum: number, p: ProjectWithStats) => sum + p.findingStats.total, 0)}
+              {projectsData.reduce((sum: number, p: ProjectWithStats) => sum + (p.findingStats?.total || 0), 0)}
             </div>
             <div className="text-sm text-muted-foreground">Total Findings</div>
           </CardContent>
