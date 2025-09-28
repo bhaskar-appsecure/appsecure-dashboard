@@ -11,6 +11,7 @@ import {
   real,
   integer,
   boolean,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -334,7 +335,9 @@ export const userRoles = pgTable("user_roles", {
     .notNull(),
   assignedBy: varchar("assigned_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("idx_user_roles_unique").on(table.userId, table.roleId),
+]);
 
 export const userInvitations = pgTable("user_invitations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

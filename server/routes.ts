@@ -801,12 +801,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/users/:id/roles', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
+  app.post('/api/users/:id/roles', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
     try {
+      const currentUserId = (req as any).user.id;
+      const currentUser = await storage.getUser(currentUserId);
+      
+      if (!currentUser?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      // Prevent self-escalation
+      if (currentUserId === req.params.id) {
+        return res.status(403).json({ message: "Cannot assign roles to yourself" });
+      }
+
+      // Get target user and role - scoped to organization to prevent enumeration
+      const targetUser = await storage.getUsersByOrganization(currentUser.organizationId)
+        .then(users => users.find(u => u.id === req.params.id));
+      const role = await storage.getRolesByOrganization(currentUser.organizationId)
+        .then(roles => roles.find(r => r.id === req.body.roleId));
+      
+      if (!targetUser || !role) {
+        return res.status(404).json({ message: "User or role not found" });
+      }
+
       const parseResult = insertUserRoleSchema.safeParse({
         userId: req.params.id,
         roleId: req.body.roleId,
-        assignedBy: (req as any).user.id
+        assignedBy: currentUserId
       });
 
       if (!parseResult.success) {
@@ -818,14 +840,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userRole = await storage.assignUserRole(parseResult.data);
       res.json(userRole);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error assigning user role:", error);
+      
+      // Handle unique constraint violation (duplicate role assignment)
+      if (error.code === '23505' || error.message?.includes('unique constraint')) {
+        return res.status(409).json({ message: "User already has this role assigned" });
+      }
+      
       res.status(500).json({ message: "Failed to assign user role" });
     }
   });
 
-  app.delete('/api/users/:userId/roles/:roleId', isAuthenticated, hasPermission('manage_users'), async (req: any, res) => {
+  app.delete('/api/users/:userId/roles/:roleId', isAuthenticated, hasPermission('manage_roles'), async (req: any, res) => {
     try {
+      const currentUserId = (req as any).user.id;
+      const currentUser = await storage.getUser(currentUserId);
+      
+      if (!currentUser?.organizationId) {
+        return res.status(400).json({ message: "User must belong to an organization" });
+      }
+
+      // Prevent self-escalation
+      if (currentUserId === req.params.userId) {
+        return res.status(403).json({ message: "Cannot remove roles from yourself" });
+      }
+
+      // Get target user and role - scoped to organization to prevent enumeration
+      const targetUser = await storage.getUsersByOrganization(currentUser.organizationId)
+        .then(users => users.find(u => u.id === req.params.userId));
+      const role = await storage.getRolesByOrganization(currentUser.organizationId)
+        .then(roles => roles.find(r => r.id === req.params.roleId));
+      
+      if (!targetUser || !role) {
+        return res.status(404).json({ message: "User or role not found" });
+      }
+
       await storage.removeUserRole(req.params.userId, req.params.roleId);
       res.json({ message: "User role removed successfully" });
     } catch (error) {
