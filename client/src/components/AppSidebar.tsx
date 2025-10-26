@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Calendar,
   Home,
@@ -28,6 +29,8 @@ import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+
+type PortalType = 'client' | 'appsecure';
 
 // Base navigation items that all users can see
 const baseNavigationItems = [
@@ -89,6 +92,15 @@ const adminSectionItems = {
 export function AppSidebar() {
   const { user } = useAuth();
   const [location] = useLocation();
+  const [portalType, setPortalType] = useState<PortalType>('appsecure'); // Default to appsecure
+
+  // Load portal type from localStorage
+  useEffect(() => {
+    const savedPortalType = localStorage.getItem('portalType') as PortalType;
+    if (savedPortalType) {
+      setPortalType(savedPortalType);
+    }
+  }, []);
 
   // Fetch user permissions from backend
   const { data: userPermissions = [] } = useQuery({
@@ -99,10 +111,16 @@ export function AppSidebar() {
   // Convert permissions array to Set for faster lookup
   const permissions = new Set((userPermissions as any[])?.map((p: any) => p.name) || []);
 
-  // Build navigation items based on user permissions
+  // Build navigation items based on user permissions and portal type
   const buildNavigationItems = () => {
     const items = [...baseNavigationItems];
 
+    // Client portal: Only show Dashboard, Projects, Findings
+    if (portalType === 'client') {
+      return items; // Return only base items
+    }
+
+    // Appsecure portal: Show all navigation based on permissions
     // Add search for researchers
     if (permissions.has('view_findings') || permissions.has('manage_findings')) {
       items.push(permissionBasedItems.search);
@@ -113,16 +131,22 @@ export function AppSidebar() {
       items.push(permissionBasedItems.reports);
     }
 
-    // Add templates for all users
+    // Add templates for appsecure users
     items.push(permissionBasedItems.templates);
 
     return items;
   };
 
-  // Build admin section items based on permissions
+  // Build admin section items based on permissions and portal type
   const buildAdminItems = () => {
     const adminItems = [];
 
+    // Client portal: No admin items shown
+    if (portalType === 'client') {
+      return [];
+    }
+
+    // Appsecure portal: Show admin items based on permissions
     // Super admin users get all admin features regardless of permissions
     const isSuperAdmin = user?.role === 'super_admin';
 
@@ -133,7 +157,6 @@ export function AppSidebar() {
     if (isSuperAdmin || permissions.has('manage_roles')) {
       adminItems.push(adminSectionItems.manage_roles);
     }
-
 
     return adminItems;
   };
@@ -152,11 +175,7 @@ export function AppSidebar() {
           <div className="flex flex-col">
             <span className="text-sm font-semibold">PenTest Pro</span>
             <span className="text-xs text-muted-foreground">
-              {user?.role === 'super_admin' ? 'Super Admin' :
-               user?.role === 'org_admin' ? 'Organization Admin' :
-               user?.role === 'customer_admin' ? 'Customer Admin' :
-               user?.role === 'researcher' ? 'Researcher' :
-               user?.role === 'project_user' ? 'Project User' : 'User'}
+              {portalType === 'client' ? 'Client Portal' : 'Appsecure Portal'}
             </span>
           </div>
         </div>
@@ -217,8 +236,8 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Quick Actions */}
-        {permissions.has('manage_findings') && (
+        {/* Quick Actions - Only for Appsecure portal */}
+        {portalType === 'appsecure' && permissions.has('manage_findings') && (
           <SidebarGroup>
             <SidebarGroupLabel>Quick Actions</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -239,8 +258,8 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Additional Quick Actions for Settings */}
-        {permissions.has('manage_system') && (
+        {/* Additional Quick Actions for Settings - Only for Appsecure portal */}
+        {portalType === 'appsecure' && permissions.has('manage_system') && (
           <SidebarGroup>
             <SidebarGroupLabel>System</SidebarGroupLabel>
             <SidebarGroupContent>
