@@ -92,15 +92,16 @@ const adminSectionItems = {
 export function AppSidebar() {
   const { user } = useAuth();
   const [location] = useLocation();
-  const [portalType, setPortalType] = useState<PortalType>('appsecure'); // Default to appsecure
-
-  // Load portal type from localStorage
-  useEffect(() => {
-    const savedPortalType = localStorage.getItem('portalType') as PortalType;
-    if (savedPortalType) {
-      setPortalType(savedPortalType);
+  
+  // Initialize portal type from localStorage immediately to avoid flash of wrong content
+  const [portalType, setPortalType] = useState<PortalType>(() => {
+    // Read from localStorage on initial render
+    if (typeof window !== 'undefined') {
+      const savedPortalType = localStorage.getItem('portalType') as PortalType;
+      return savedPortalType || 'appsecure';
     }
-  }, []);
+    return 'appsecure';
+  });
 
   // Fetch user permissions from backend
   const { data: userPermissions = [] } = useQuery({
