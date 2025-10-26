@@ -1,23 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Shield, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Shield, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
+import PortalSelection from "./PortalSelection";
 
 interface LoginForm {
   email: string;
   password: string;
 }
 
+type PortalType = 'client' | 'appsecure' | null;
+
 export default function Login() {
   const [formData, setFormData] = useState<LoginForm>({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [portalType, setPortalType] = useState<PortalType>(null);
   const { toast } = useToast();
+
+  // Load portal type from localStorage on mount
+  useEffect(() => {
+    const savedPortalType = localStorage.getItem('portalType') as PortalType;
+    if (savedPortalType) {
+      setPortalType(savedPortalType);
+    }
+  }, []);
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
@@ -66,6 +78,21 @@ export default function Login() {
     }));
   };
 
+  const handlePortalSelection = (selectedPortal: 'client' | 'appsecure') => {
+    setPortalType(selectedPortal);
+    localStorage.setItem('portalType', selectedPortal);
+  };
+
+  const handleBackToPortalSelection = () => {
+    setPortalType(null);
+    localStorage.removeItem('portalType');
+  };
+
+  // Show portal selection if no portal type is selected
+  if (!portalType) {
+    return <PortalSelection onSelectPortal={handlePortalSelection} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
@@ -85,14 +112,27 @@ export default function Login() {
       <div className="flex items-center justify-center px-4 py-16">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
-            <div className="flex items-center justify-center mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToPortalSelection}
+                data-testid="button-back-to-portal"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Change Portal
+              </Button>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Shield className="h-6 w-6" />
               </div>
             </div>
-            <CardTitle className="text-2xl text-center">Welcome Back</CardTitle>
+            <CardTitle className="text-2xl text-center">
+              {portalType === 'client' ? 'Client Portal Login' : 'Appsecure Portal Login'}
+            </CardTitle>
             <CardDescription className="text-center">
-              Sign in to your PenTest Pro account
+              {portalType === 'client' 
+                ? 'Sign in to access your security assessment reports' 
+                : 'Sign in to manage projects and findings'}
             </CardDescription>
           </CardHeader>
           <CardContent>
