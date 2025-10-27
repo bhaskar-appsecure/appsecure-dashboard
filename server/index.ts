@@ -2,10 +2,20 @@ import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { getSessionConfig } from "./config/session";
+import authRoutes from "./routes/auth";
 
 const app = express();
+
+// Trust proxy for rate limiting and IP detection
+app.set("trust proxy", 1);
+
+// Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Session middleware (must be before auth routes)
+app.use(getSessionConfig());
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -38,6 +48,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Mount auth routes FIRST (before other routes)
+  app.use("/api/auth", authRoutes);
+
+  // Register other routes (projects, findings, etc.)
+  // TODO: Refactor routes.ts to split into modular route files
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -1,16 +1,16 @@
 /**
- * Landing Page - Portal Selection
- *
- * Entry point for choosing between Client or Internal portals
+ * Internal Login Selection
+ * Route: /internal-login
+ * Choose between Admin or Pentester login
  */
 
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Shield, Users, Building2 } from "lucide-react";
+import { Shield, UserCog, Bug, ArrowLeft } from "lucide-react";
 
-export default function Landing() {
+export default function InternalLoginSelection() {
   const navigate = useNavigate();
 
   return (
@@ -28,85 +28,67 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Portal Selection */}
+      {/* Selection Cards */}
       <div className="flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-3xl">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/')}
+            className="mb-6"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Portal Selection
+          </Button>
+
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Welcome to SecureReport Flow</h1>
-            <p className="text-muted-foreground">Select your portal to continue</p>
+            <h1 className="text-3xl font-bold mb-2">Internal Portal Access</h1>
+            <p className="text-muted-foreground">Select your role to continue</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Client Portal */}
+            {/* Admin Login */}
             <Card
               className="hover:shadow-lg cursor-pointer transition-all"
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/internal-login/admin')}
             >
               <CardHeader className="text-center pb-4">
                 <div className="flex justify-center mb-4">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Users className="h-8 w-8" />
+                    <UserCog className="h-8 w-8" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl">Client Portal</CardTitle>
+                <CardTitle className="text-2xl">Admin</CardTitle>
                 <CardDescription>
-                  Access your security assessment reports and findings
+                  Organization and system management
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    View assessment reports
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    Track project progress
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    Review security findings
-                  </p>
-                </div>
+              <CardContent>
                 <Button className="w-full" size="lg">
-                  Login to Client Portal
+                  Admin Login
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Internal Portal */}
+            {/* Pentester Login */}
             <Card
               className="hover:shadow-lg cursor-pointer transition-all"
-              onClick={() => navigate('/internal-login')}
+              onClick={() => navigate('/internal-login/pentester')}
             >
               <CardHeader className="text-center pb-4">
                 <div className="flex justify-center mb-4">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Building2 className="h-8 w-8" />
+                    <Bug className="h-8 w-8" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl">Internal Portal</CardTitle>
+                <CardTitle className="text-2xl">Pentester</CardTitle>
                 <CardDescription>
-                  Admin and Pentester access
+                  Security researcher and findings management
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    Manage all projects and findings
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    Create and manage templates
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    User and role management
-                  </p>
-                </div>
+              <CardContent>
                 <Button className="w-full" size="lg">
-                  Login to Internal Portal
+                  Pentester Login
                 </Button>
               </CardContent>
             </Card>

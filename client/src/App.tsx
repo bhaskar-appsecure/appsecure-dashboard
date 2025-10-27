@@ -1,99 +1,64 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { useAuth } from "@/hooks/useAuth";
-import { AppSidebar } from "@/components/AppSidebar";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+
+// Pages
+import Landing from "@/pages/Landing";
+import ClientLogin from "@/pages/ClientLogin";
+import InternalLoginSelection from "@/pages/InternalLoginSelection";
+import AdminLogin from "@/pages/AdminLogin";
+import PentesterLogin from "@/pages/PentesterLogin";
+import SimpleDashboard from "@/pages/SimpleDashboard";
 import NotFound from "@/pages/not-found";
-import Login from "@/pages/Login";
-import Dashboard from "@/pages/Dashboard";
-import Projects from "@/pages/Projects";
-import ProjectDetail from "@/pages/ProjectDetail";
-import MyFindings from "@/pages/MyFindings";
-import FindingDetail from "./pages/FindingDetail";
-import CreateFinding from "@/pages/CreateFinding";
-import UserManagement from "@/pages/UserManagement";
-import RoleManagement from "@/pages/RoleManagement";
-import TemplateManagement from "@/pages/TemplateManagement";
+import Dashboard from "./pages/Dashboard";
 
-function AuthenticatedRouter() {
-  return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/projects" component={Projects} />
-      <Route path="/projects/:id" component={ProjectDetail} />
-      <Route path="/findings" component={MyFindings} />
-      <Route path="/findings/new" component={CreateFinding} />
-      <Route path="/findings/:id" component={FindingDetail} />
-      <Route path="/search" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Search</h1><p className="text-muted-foreground">Advanced search interface coming soon...</p></div>} />
-      <Route path="/reports" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Reports</h1><p className="text-muted-foreground">Report generation interface coming soon...</p></div>} />
-      <Route path="/templates" component={TemplateManagement} />
-      <Route path="/users" component={UserManagement} />
-      <Route path="/roles" component={RoleManagement} />
-      <Route path="/settings" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground">Settings interface coming soon...</p></div>} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
-
-function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Login />;
-  }
-
-  return <AuthenticatedApp />;
-}
-
-function AuthenticatedApp() {
-  // Custom sidebar width for the application
-  const style = {
-    "--sidebar-width": "16rem",
-    "--sidebar-width-icon": "3rem",
-  } as React.CSSProperties;
-
-  return (
-    <SidebarProvider style={style}>
-      <div className="flex h-screen w-full">
-        <AppSidebar />
-        <div className="flex flex-col flex-1">
-          <header className="flex items-center justify-between p-2 border-b">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <ThemeToggle />
-          </header>
-          <main className="flex-1 overflow-auto">
-            <AuthenticatedRouter />
-          </main>
-        </div>
-      </div>
-    </SidebarProvider>
-  );
-}
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <div className="min-h-screen">
-          <Router />
-        </div>
+      <ThemeProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<ClientLogin />} />
+            <Route
+              path="/internal-login"
+              element={<InternalLoginSelection />}
+            />
+            <Route path="/internal-login/admin" element={<AdminLogin />} />
+            <Route
+              path="/internal-login/pentester"
+              element={<PentesterLogin />}
+            />
+
+            {/* Protected Routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
         <Toaster />
-      </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

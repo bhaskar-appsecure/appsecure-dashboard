@@ -1,7 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, hasPermission, isSuperAdmin, hashPassword } from "./auth";
+import { isAuthenticated, hasPermission, isSuperAdmin } from "./middleware/auth";
+import { hashPassword } from "./utils/password";
+import { getSessionConfig } from "./config/session";
+import authRoutes from "./routes/auth";
 import crypto from "crypto";
 import { z } from "zod";
 import { 
@@ -40,9 +43,12 @@ const sanitizeHtml = (html: string | undefined | null): string => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+  // Session middleware
+  app.set("trust proxy", 1);
+  app.use(getSessionConfig());
 
+  // Auth routes
+  app.use("/api/auth", authRoutes);
   // Auth routes are now handled in auth.ts
 
   // Bootstrap route for setting up super admin
@@ -594,13 +600,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         findings: findings.map(finding => ({
           title: finding.title,
           description: sanitizeHtml(finding.descriptionHtml) || '',
-          severity: finding.severity,
-          type: finding.category || 'General',
+          severity: finding.severity || 'low',
+          type: 'General', // Category field doesn't exist in schema
           cvssScore: finding.cvssScore?.toString() || '0.0',
           cvssVector: finding.cvssVector || '',
           stepsToReproduce: sanitizeHtml(finding.stepsHtml) || '',
           impact: sanitizeHtml(finding.impactHtml) || '',
-          httpRequest: finding.technicalDetails || '',
+          httpRequest: '', // technicalDetails field doesn't exist in schema
           recommendation: sanitizeHtml(finding.fixHtml) || '',
           screenshots: [],
           status: finding.status
@@ -623,7 +629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Replace test scope (array)
       const testScopeHtml = templateData.test_scope.map(scope => `<li>${scope}</li>`).join('');
-      populatedHtml = populatedHtml.replace(/{{#test_scope}}.*?{{\/test_scope}}/gs, `<ul>${testScopeHtml}</ul>`);
+      populatedHtml = populatedHtml.replace(/{{#test_scope}}[\s\S]*?{{\/test_scope}}/g, `<ul>${testScopeHtml}</ul>`);
 
       // Replace findings (array) - basic replacement for now
       const findingsHtml = templateData.findings.map(finding => `
@@ -640,7 +646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         </div>
       `).join('');
       
-      populatedHtml = populatedHtml.replace(/{{#findings}}.*?{{\/findings}}/gs, findingsHtml);
+      populatedHtml = populatedHtml.replace(/{{#findings}}[\s\S]*?{{\/findings}}/g, findingsHtml);
 
       // Launch puppeteer and generate PDF
       const browser = await puppeteer.launch({
@@ -649,10 +655,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const page = await browser.newPage();
-      
+
       // Disable JavaScript for security
       await page.setJavaScriptEnabled(false);
-      
+
       // Block external requests for security (only allow data: URLs)
       await page.setRequestInterception(true);
       page.on('request', (request) => {
@@ -663,10 +669,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           request.abort();
         }
       });
-      
+
       // Set content with proper wait conditions
       await page.setContent(populatedHtml, { waitUntil: 'networkidle0' });
-      
+
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
@@ -679,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       await browser.close();
-      return pdfBuffer;
+      return Buffer.from(pdfBuffer);
 
     } catch (error) {
       console.error('Error generating PDF:', error);
